@@ -5,9 +5,7 @@
 void input_file(){
     FILE *member;
     char mem[100];
-    printf("ระบุชื่อไฟล์ member ที่ต้องการใช้งาน : ");
-    scanf("%s",mem);
-    member = fopen(mem,"r");
+    member = fopen("memberfiles.txt","r");
     if(member == NULL){
         printf("fail open");
         return;
