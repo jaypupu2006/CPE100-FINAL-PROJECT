@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <windows.h>
+#include <stdlib.h>
 #include "menu1.h"
 
-int main (){
-
+int main () {
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    system("cls"); 
     int menu;
     while(1){
         printf("Badminton Group Payment System\n");
