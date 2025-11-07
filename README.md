@@ -31,7 +31,7 @@ gcc main.c menu1.c -o badminton
 ### 3. รันโปรแกรม
 ใช้คำสั่ง:
 ```bash
-.adminton.exe
+.\badminton.exe
 ```
 > ต้องมี `.\` เพราะ PowerShell ต้องระบุว่าไฟล์นี้อยู่ในโฟลเดอร์ปัจจุบัน
 
