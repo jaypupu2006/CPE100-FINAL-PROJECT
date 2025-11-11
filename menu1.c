@@ -25,12 +25,28 @@ void delay(int number_of_seconds)
 	while (clock() < start_time + milli_seconds);
 }
 
-void registerMember() {
+void registerMember(FILE *memberfiles,member *m, int *count) {
+    *count++;
+    char buff[50];
+    printf("ชื่อ:"); scanf("%s", buff);
+    m[*count].name = malloc(strlen(buff) +1); 
+    strcpy(m[*count].name, buff);
 
+    printf("นามสกุล:"); scanf("%s", buff);
+    m[*count].surname = malloc(strlen(buff) +1); 
+    strcpy(m[*count].surname, buff);
+
+    printf("ชื่อเล่น:"); scanf("%s", buff);
+    m[*count].nickname = malloc(strlen(buff) +1); 
+    strcpy(m[*count].nickname, buff);
+    
+    *m[*count].memid = *m[*count-1].memid + 1;
+    printf("\n\tเลขสมาชิกของคุณคือ %d", *m[*count].memid);
+
+    delay(3);
 }
  
-void input_file(){
-    system("cls"); 
+void input_file(){ 
     FILE *memberfiles;
     char mem[100], buff[5][35];
     int menu1;
@@ -52,18 +68,24 @@ void input_file(){
         printf("FALIED OPEN. PLS TRY AGAIN");
         
     }
-
     delay(2); // Delay function (maybe we need to use);
-
-    printf("\n1.ลงทะเบียนสมาชิกก๊วน\n");
-    printf("2.ค้นหารายชื่อในระบบ\n");
-    printf("3.รายชื่อสมาชิกทั้งหมด\n");
-    if (menu1 == 1) {
-    }
-    else if (menu1 == 2) {
+    
+    do {
+        system("cls");
+        printf("\n1.ลงทะเบียนสมาชิกก๊วน\n");
+        printf("2.ค้นหารายชื่อในระบบ\n");
+        printf("3.รายชื่อสมาชิกทั้งหมด\n");
+        printf("กรอกหมายเลขตามเมนูที่ต้องการ : ");
+        scanf("%d", &menu1);
+        if (menu1 == 1) {
+           registerMember(memberfiles,m,&count);
+        }
+        else if (menu1 == 2) {
         
-    }
-    else if (menu1 == 3) {
+        }
+        else if (menu1 == 3) {
         
-    }
+        }
+    } while (menu1 != 0);
+    return;
 }

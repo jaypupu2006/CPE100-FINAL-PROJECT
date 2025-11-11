@@ -8,9 +8,9 @@
 int main () {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-    system("cls"); 
     int menu;
     while(1){
+        system("cls");
         printf("Badminton Group Payment System\n");
         printf("กรอกหมายเลขเพื่อทำระบบต่อไปนี้\n");
         printf("1.ระบบสมาชิก\n");
