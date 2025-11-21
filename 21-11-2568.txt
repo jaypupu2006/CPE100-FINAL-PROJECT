@@ -1,0 +1,5 @@
+member_id|fullname|nickname|gender|shuttle_qty|court_fee|amount_today|paid_today|paid_os|method_today
+1|สมชาย ใจดี|ชาย|1|4|50|70|70|0|2
+2|ปวีณา มณีศรี|ฝน|2|4|50|70|0|0|0
+3|วีรภัทร ชาญชัย|บาส|1|4|50|70|0|0|0
+4|ภูดินันทน์ ภูคากัน|เจ|1|4|50|70|0|0|0
