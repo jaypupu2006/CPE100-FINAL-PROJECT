@@ -5,6 +5,7 @@
 #include "menu2.h"
 #include "menu3.h"
 
+/* helper: เช็คว่าไฟล์มีอยู่จริงไหม */
 static int file_exists(const char *path){
     FILE *fp=fopen(path,"r");
     if(!fp) return 0;
@@ -12,6 +13,7 @@ static int file_exists(const char *path){
     return 1;
 }
 
+/* helper: print เนื้อไฟล์ทั้งไฟล์ออกหน้าจอ */
 static void print_file(const char *path){
     FILE *fp=fopen(path,"r");
     if(!fp){
@@ -23,23 +25,27 @@ static void print_file(const char *path){
     fclose(fp);
 }
 
-/* สรุปรายวัน + เขียนไฟล์สรุป (แบบละเอียด/แบบย่อ) */
+/* สรุปรายวัน + เขียนไฟล์สรุป (full=1 รายละเอียด, full=0 แบบย่อ) */
 static int summarize_daily_and_write(const char *daily_path, const char *out_path, int full){
     FILE *fp=fopen(daily_path,"r");
-    if(!fp) return 0;
+    if(!fp){
+        printf("ไม่พบไฟล์รายวัน: %s\n", daily_path);
+        return 0;
+    }
     FILE *fo=fopen(out_path,"w");
     if(!fo){
+        printf("ไม่สามารถเขียนไฟล์สรุป: %s\n", out_path);
         fclose(fp);
         return 0;
     }
 
-    /* เขียน BOM สำหรับ UTF-8 */
+    /* เขียน BOM UTF-8 กันภาษาไทยเพี้ยนใน Excel/Notepad บางตัว */
     fwrite("\xEF\xBB\xBF",1,3,fo);
 
     char line[512];
-    int idx=0;
     int total_players=0,total_shuttle=0,max_shuttle=0,min_shuttle=1<<30;
     int total_income=0,paid_cash=0,paid_transfer=0,paid_os_today=0,court_fee_pp=0,court_fee_total=0;
+    int idx=0;
 
     char date_only[32]="";
     {
@@ -47,14 +53,13 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
         const char *bp=strrchr(daily_path,'\\');
         const char *base=bn?bn+1:(bp?bp+1:daily_path);
         strncpy(date_only, base, sizeof(date_only)-1);
-        date_only[sizeof(date_only)-1]='\0';
         char *dot=strrchr(date_only,'.');
         if(dot) *dot='\0';
     }
 
     if(full){
         fprintf(fo,"วันที่|%s\n",date_only);
-        fprintf(fo,"ลำดับ|ชื่อเล่น|เลขสมาชิก|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ชำระค้าง|วิธีชำระ\n");
+        fprintf(fo,"ลำดับ|ชื่อเล่น|เลขสมาชิก|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ค้างสะสม|วิธีชำระ\n");
     } else {
         fprintf(fo,"วันที่|%s\n",date_only);
     }
@@ -122,11 +127,10 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
     int total_players=0,total_shuttle=0,max_shuttle=0,min_shuttle=1<<30;
     int total_income=0,paid_cash=0,paid_transfer=0,paid_from_os=0,court_fee_total=0,court_fee_pp_last=0;
 
-    /* ไล่หาไฟล์ 01-MM-YYYY.txt ถึง 31-MM-YYYY.txt ในโฟลเดอร์เดียวกัน */
     for(day=1; day<=31; day++){
         char dd[3];
         snprintf(dd,sizeof(dd),"%02d",day);
-        snprintf(path,sizeof(path),"%s-%s.txt",dd,month_yyyy);   /* <<== แก้จาก input/%s-%s.txt */
+        snprintf(path,sizeof(path),"%s-%s.txt",dd,month_yyyy);
 
         FILE *fp=fopen(path,"r");
         if(!fp) continue;
@@ -155,88 +159,102 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
         fclose(fp);
     }
 
-    {
-        int outstanding_this_month=0;
-        FILE *fos=fopen("OSpayment.txt","r");
-        if(fos){
-            char line[512];
-            while(fgets(line,sizeof(line),fos)){
-                if(!isdigit((unsigned char)line[0])) continue;
-                int member_id,gender,os_amount;
-                char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN], date[DATE_MAXLEN], note[NOTE_MAXLEN];
-                if(sscanf(line,"%d|%127[^|]|%63[^|]|%d|%15[^|]|%d|%127[^\n]",
-                          &member_id, fullname, nickname, &gender, date, &os_amount, note)==7){
-                    if(strlen(date)>=7){
-                        if(strncmp(date+3, month_yyyy, strlen(month_yyyy))==0)
-                            outstanding_this_month+=os_amount;
-                    }
+    int outstanding_this_month=0;
+    FILE *fos=fopen("OSpayment.txt","r");
+    if(fos){
+        char line[512];
+        while(fgets(line,sizeof(line),fos)){
+            if(!isdigit((unsigned char)line[0])) continue;
+            int member_id,gender,os_amount;
+            char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN], date[DATE_MAXLEN], note[NOTE_MAXLEN];
+            if(sscanf(line,"%d|%127[^|]|%63[^|]|%d|%15[^|]|%d|%127[^\n]",
+                      &member_id, fullname, nickname, &gender, date, &os_amount, note)==7){
+                if(strlen(date)>=7){
+                    if(strncmp(date+3, month_yyyy, strlen(month_yyyy))==0)
+                        outstanding_this_month+=os_amount;
                 }
             }
-            fclose(fos);
         }
-
-        FILE *fo=fopen(out_path,"w");
-        if(!fo) return 0;
-
-        /* BOM */
-        fwrite("\xEF\xBB\xBF",1,3,fo);
-
-        fprintf(fo,"เดือน/ปี|%s\n",month_yyyy);
-        fprintf(fo,"จำนวนวันที่มีข้อมูล|%d\n", total_days);
-        fprintf(fo,"จำนวนลูกทั้งหมด (เดือน)|%d\n", total_shuttle);
-        fprintf(fo,"ค่าเฉลี่ยลูก/คน (เดือน)|%d\n", total_players? total_shuttle/total_players : 0);
-        fprintf(fo,"ลูกสูงสุด/วัน|%d\n", max_shuttle);
-        fprintf(fo,"ลูกต่ำสุด/วัน|%d\n", (min_shuttle==1<<30)?0:min_shuttle);
-        fprintf(fo,"จำนวนผู้เล่นรวม|%d\n", total_players);
-        fprintf(fo,"ค่าสนามต่อคน (อ้างอิงล่าสุด)|%d\n", court_fee_pp_last);
-        fprintf(fo,"ค่าสนามรวมทั้งเดือน|%d\n", court_fee_total);
-        fprintf(fo,"ยอดที่ต้องได้รับทั้งเดือน|%d\n", total_income);
-        fprintf(fo,"รับจริง (เงินสด)|%d\n", paid_cash);
-        fprintf(fo,"รับจริง (โอน)|%d\n", paid_transfer);
-        fprintf(fo,"รับจากชำระค้าง|%d\n", paid_from_os);
-        fprintf(fo,"รวมรับจริงทั้งหมด|%d\n", paid_cash+paid_transfer+paid_from_os);
-        fprintf(fo,"ยอดค้างจ่ายในเดือนนี้|%d\n", outstanding_this_month);
-
-        fclose(fo);
+        fclose(fos);
     }
 
+    FILE *fo=fopen(out_path,"w");
+    if(!fo){
+        printf("ไม่สามารถเขียนไฟล์สรุปรายเดือน: %s\n", out_path);
+        return 0;
+    }
+
+    fwrite("\xEF\xBB\xBF",1,3,fo);
+
+    fprintf(fo,"เดือน/ปี|%s\n",month_yyyy);
+    fprintf(fo,"จำนวนวันที่มีข้อมูล|%d\n", total_days);
+    fprintf(fo,"จำนวนลูกทั้งหมด (เดือน)|%d\n", total_shuttle);
+    fprintf(fo,"ค่าเฉลี่ยลูก/คน (เดือน)|%d\n", total_players? total_shuttle/total_players : 0);
+    fprintf(fo,"ลูกสูงสุด/วัน|%d\n", max_shuttle);
+    fprintf(fo,"ลูกต่ำสุด/วัน|%d\n", (min_shuttle==1<<30)?0:min_shuttle);
+    fprintf(fo,"จำนวนผู้เล่นรวม|%d\n", total_players);
+    fprintf(fo,"ค่าสนามต่อคน (อ้างอิงล่าสุด)|%d\n", court_fee_pp_last);
+    fprintf(fo,"ค่าสนามรวมทั้งเดือน|%d\n", court_fee_total);
+    fprintf(fo,"ยอดที่ต้องได้รับทั้งเดือน|%d\n", total_income);
+    fprintf(fo,"รับจริง (เงินสด)|%d\n", paid_cash);
+    fprintf(fo,"รับจริง (โอน)|%d\n", paid_transfer);
+    fprintf(fo,"รับจากชำระค้าง|%d\n", paid_from_os);
+    fprintf(fo,"รวมรับจริงทั้งหมด|%d\n", paid_cash+paid_transfer+paid_from_os);
+    fprintf(fo,"ยอดค้างจ่ายในเดือนนี้|%d\n", outstanding_this_month);
+
+    fclose(fo);
     return 1;
 }
 
+/* เมนูสรุปข้อมูลหลัก – มี 0 ย้อนกลับทุกขั้นตอนสำคัญ */
 void menu3_choose(void){
     int sub;
-    printf("\nเมนูสรุปข้อมูล\n");
+
+    printf("\n=== เมนูสรุปข้อมูล ===\n");
     printf("1. สรุปข้อมูลรายวัน\n");
     printf("2. สรุปข้อมูลรายเดือน\n");
     printf("0. ย้อนกลับ\n");
     printf("เลือก: ");
-    if(scanf("%d",&sub)!=1) return;
+    if(scanf("%d",&sub)!=1){
+        while(getchar()!='\n' && !feof(stdin)){}
+        return;
+    }
     if(sub==0) return;
 
     if(sub==1){
         int mode;
-        char date[16], inpath[128], out_full[160], out_brief[160];
+        char date[DATE_MAXLEN], inpath[128], out_full[160], out_brief[160];
 
-        printf("กรอกวันที่ (DD-MM-YYYY): ");
-        if(scanf("%15s",date)!=1) return;
+        printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ): ");
+        if(scanf("%15s",date)!=1){
+            while(getchar()!='\n' && !feof(stdin)){}
+            return;
+        }
+        if(strcmp(date,"0")==0) return;
 
-        /* ใช้ไฟล์รายวันจากโฟลเดอร์เดียวกับโปรแกรม เช่น 20-11-2025.txt */
         snprintf(inpath,sizeof(inpath),"%s.txt",date);
         snprintf(out_full,sizeof(out_full),"output/%s.สรุปแบบละเอียด.txt",date);
         snprintf(out_brief,sizeof(out_brief),"output/%s.สรุปแบบย่อ.txt",date);
 
         printf("1. สรุปแบบมีรายชื่อ\n");
         printf("2. สรุปแบบย่อ\n");
+        printf("0. ย้อนกลับ\n");
         printf("เลือก: ");
-        if(scanf("%d",&mode)!=1) return;
+        if(scanf("%d",&mode)!=1){
+            while(getchar()!='\n' && !feof(stdin)){}
+            return;
+        }
+        if(mode==0) return;
 
         if(mode==1){
             if(file_exists(out_full)){
                 print_file(out_full);
             }else if(file_exists(inpath)){
-                summarize_daily(inpath,1);  /* แสดงบนจอด้วย */
+                summarize_daily(inpath,1);
                 if(!summarize_daily_and_write(inpath,out_full,1))
                     printf("บันทึกไฟล์สรุปแบบละเอียดล้มเหลว\n");
+                else
+                    print_file(out_full);
             }else{
                 printf("ไม่พบไฟล์รายวัน: %s\n", inpath);
             }
@@ -244,17 +262,26 @@ void menu3_choose(void){
             if(file_exists(out_brief)){
                 print_file(out_brief);
             }else if(file_exists(inpath)){
-                summarize_daily(inpath,1);  /* แสดงบนจอด้วย */
+                summarize_daily(inpath,1);
                 if(!summarize_daily_and_write(inpath,out_brief,0))
                     printf("บันทึกไฟล์สรุปแบบย่อล้มเหลว\n");
+                else
+                    print_file(out_brief);
             }else{
                 printf("ไม่พบไฟล์รายวัน: %s\n", inpath);
             }
+        }else{
+            printf("เมนูไม่ถูกต้อง\n");
         }
+
     } else if(sub==2){
         char month_yyyy[8], out_path[160];
-        printf("กรอกเดือน/ปี (MM-YYYY): ");
-        if(scanf("%7s",month_yyyy)!=1) return;
+        printf("กรอกเดือน/ปี (MM-YYYY) (0 = ย้อนกลับ): ");
+        if(scanf("%7s",month_yyyy)!=1){
+            while(getchar()!='\n' && !feof(stdin)){}
+            return;
+        }
+        if(strcmp(month_yyyy,"0")==0) return;
 
         snprintf(out_path,sizeof(out_path),"output/%s.สรุปรายเดือน.txt",month_yyyy);
 

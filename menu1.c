@@ -4,192 +4,244 @@
 #include <time.h>
 #include <ctype.h>
 
+#define NAME_MAXLEN 128
+#define NICK_MAXLEN 64
+#define DATE_MAXLEN 16
+
+/* ตรวจว่า member.txt เปิดได้ไหม ถ้าไม่ได้ให้สร้างไฟล์ใหม่ */
 void input_file(){
-    FILE *member;
-    member = fopen("member.txt","r");
+    FILE *member = fopen("member.txt","r");
     if(member == NULL){
-        printf("fail open");
-        return;
+        member = fopen("member.txt","w");
+        if(member == NULL){
+            printf("ไม่สามารถสร้างไฟล์ member.txt ได้\n");
+            return;
+        }
     }
     fclose(member);
 }
 
+/* สร้างวันที่ปัจจุบันเป็น YYYY-MM-DD */
+static void get_today(char buf[DATE_MAXLEN]){
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    strftime(buf, DATE_MAXLEN, "%Y-%m-%d", tm_info);
+}
+
+/* ลงทะเบียนสมาชิกใหม่ */
 void register_member(){
     FILE *fp;
-    char fullname[100], nickname[50];
-    int gender;
     int last_id = 0;
-    char line[256];
-    
+
     fp = fopen("member.txt", "r");
-    if (fp != NULL) {
-        while (fgets(line, sizeof(line), fp)) {
-            if (isdigit((unsigned char)line[0])) {
-                sscanf(line, "%d|", &last_id);
+    if(fp != NULL){
+        char line[512];
+        while(fgets(line, sizeof(line), fp)){
+            int id;
+            if(sscanf(line, "%d|", &id) == 1){
+                if(id > last_id) last_id = id;
             }
         }
         fclose(fp);
     }
 
-    printf("\n=== ลงทะเบียนสมาชิกก๊วน ===\n");
+    int new_id = last_id + 1;
+    char fullname[NAME_MAXLEN];
+    char nickname[NICK_MAXLEN];
+    int gender;
+    char created_at[DATE_MAXLEN];
 
-    /* เคลียร์ newline ที่ค้างมาจาก scanf เมนู */
-    { int c; while ((c = getchar()) != '\n' && c != EOF) {} }
-
-    printf("กรอกชื่อ-นามสกุล: ");
+    printf("\n=== ลงทะเบียนสมาชิกใหม่ ===\n");
+    printf("ป้อนชื่อ-นามสกุล (เว้นวรรคคั่น): ");
+    getchar(); // เคลียร์ \n ค้างจาก scanf ก่อนหน้า
     fgets(fullname, sizeof(fullname), stdin);
-    fullname[strcspn(fullname, "\n")] = 0;
+    fullname[strcspn(fullname, "\n")] = '\0';
 
-    printf("กรอกชื่อเล่น: ");
-    fgets(nickname, sizeof(nickname), stdin);
-    nickname[strcspn(nickname, "\n")] = 0;
-
-    printf("เพศ (1. ชาย, 2. หญิง): ");
-    scanf("%d", &gender);
-    
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    char created_at[20];
-    sprintf(created_at, "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-    
-    fp = fopen("member.txt", "a");
-    if (fp == NULL) {
-        printf("เกิดข้อผิดพลาดในการเปิดไฟล์เพื่อบันทึกข้อมูล\n");
+    if(strlen(fullname) == 0){
+        printf("ยกเลิกการลงทะเบียน (ไม่ได้กรอกชื่อ)\n");
         return;
     }
 
-    fprintf(fp, "%d|%s|%s|%d|%s\n", last_id + 1, fullname, nickname, gender, created_at);
+    printf("ป้อนชื่อเล่น: ");
+    fgets(nickname, sizeof(nickname), stdin);
+    nickname[strcspn(nickname, "\n")] = '\0';
+
+    printf("เพศ (1=ชาย, 2=หญิง, 0=ยกเลิก): ");
+    if(scanf("%d", &gender) != 1){
+        while(getchar()!='\n' && !feof(stdin)){}
+        printf("ข้อมูลไม่ถูกต้อง ยกเลิกการลงทะเบียน\n");
+        return;
+    }
+    if(gender == 0){
+        printf("ยกเลิกการลงทะเบียน\n");
+        return;
+    }
+
+    get_today(created_at);
+
+    fp = fopen("member.txt","a");
+    if(fp == NULL){
+        printf("ไม่สามารถเปิด member.txt เพื่อเขียนได้\n");
+        return;
+    }
+
+    fprintf(fp, "%d|%s|%s|%d|%s\n", new_id, fullname, nickname, gender, created_at);
     fclose(fp);
 
-    printf("\n ลงทะเบียนเสร็จสิ้น! รหัสสมาชิกของคุณคือ %d\n", last_id + 1);
+    printf("ลงทะเบียนสำเร็จ! รหัสสมาชิกของคุณคือ: %d\n", new_id);
 }
 
-void search_member() {
-    FILE *fp;
-    char line[256];
-    int choice;
+/* ค้นหาสมาชิก */
+void search_member(){
+    FILE *fp = fopen("member.txt","r");
+    if(fp == NULL){
+        printf("ไม่พบไฟล์ member.txt\n");
+        return;
+    }
 
-    printf("\n=== ค้นหารายชื่อในระบบ ===\n");
-    printf("1. ค้นหาด้วยเลขสมาชิก\n");
+    int mode;
+    printf("\n=== ค้นหาสมาชิก ===\n");
+    printf("1. ค้นหาด้วยรหัสสมาชิก\n");
     printf("2. ค้นหาด้วยชื่อเล่น\n");
     printf("3. ค้นหาด้วยชื่อ-นามสกุล\n");
     printf("0. ย้อนกลับ\n");
-    printf("เลือกวิธีค้นหา: ");
-    scanf("%d", &choice);
-
-    if (choice == 0) return;
-
-    int target_id = 0;
-    char keyword[128];
-
-    if (choice == 1) {
-        printf("กรอกเลขสมาชิก: ");
-        scanf("%d", &target_id);
-    } else {
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF) {}
-        printf("กรอกคำค้นหา: ");
-        fgets(keyword, sizeof(keyword), stdin);
-        keyword[strcspn(keyword, "\n")] = 0;
+    printf("เลือก: ");
+    if(scanf("%d", &mode) != 1){
+        while(getchar()!='\n' && !feof(stdin)){}
+        fclose(fp);
+        return;
     }
-
-    fp = fopen("member.txt", "r");
-    if (fp == NULL) {
-        printf("ไม่สามารถเปิดไฟล์ได้\n");
+    if(mode == 0){
+        fclose(fp);
         return;
     }
 
-    printf("\n=== ผลการค้นหา ===\n");
-    int id, gender;
-    char fullname[100], nickname[50], created_at[20];
-    int found = 0;
+    char key[NAME_MAXLEN];
+    int search_id = 0;
 
-    while (fgets(line, sizeof(line), fp)) {
-        if (!(line[0] >= '0' && line[0] <= '9')) {
-            continue;
+    if(mode == 1){
+        printf("ป้อนรหัสสมาชิก (0 = ย้อนกลับ): ");
+        if(scanf("%d", &search_id) != 1){
+            while(getchar()!='\n' && !feof(stdin)){}
+            fclose(fp);
+            return;
         }
-        if (sscanf(line, "%d|%99[^|]|%49[^|]|%d|%19s", &id, fullname, nickname, &gender, created_at) == 5) {
+        if(search_id == 0){
+            fclose(fp);
+            return;
+        }
+    }else{
+        printf("ป้อนคำที่ต้องการค้นหา (0 = ย้อนกลับ): ");
+        getchar();
+        fgets(key, sizeof(key), stdin);
+        key[strcspn(key, "\n")] = '\0';
+        if(strcmp(key,"0") == 0){
+            fclose(fp);
+            return;
+        }
+    }
+
+    printf("\nผลการค้นหา:\n");
+    printf("ID | ชื่อ-นามสกุล | ชื่อเล่น | เพศ | วันที่สมัคร\n");
+    printf("----------------------------------------------------------\n");
+
+    char line[512];
+    int found = 0;
+    while(fgets(line, sizeof(line), fp)){
+        int id, gender;
+        char fullname[NAME_MAXLEN];
+        char nickname[NICK_MAXLEN];
+        char created_at[DATE_MAXLEN];
+
+        if(sscanf(line, "%d|%127[^|]|%63[^|]|%d|%15[^\n]",
+                  &id, fullname, nickname, &gender, created_at) == 5){
             int match = 0;
-            if (choice == 1 && id == target_id) {
-                match = 1;
-            } else if (choice == 2 && strstr(nickname, keyword)) {
-                match = 1;
-            } else if (choice == 3 && strstr(fullname, keyword)) {
-                match = 1;
+            if(mode == 1){
+                if(id == search_id) match = 1;
+            }else if(mode == 2){
+                if(strstr(nickname, key) != NULL) match = 1;
+            }else if(mode == 3){
+                if(strstr(fullname, key) != NULL) match = 1;
             }
 
-            if (match) {
-                printf("รหัส: %d | %s (%s) | เพศ: %s | วันที่สมัคร: %s\n",
-                       id, fullname, nickname, (gender == 1 ? "ชาย" : "หญิง"), created_at);
+            if(match){
+                printf("%d | %s | %s | %d | %s\n", id, fullname, nickname, gender, created_at);
                 found = 1;
             }
         }
     }
 
-    fclose(fp);
-    if (!found) {
+    if(!found){
         printf("ไม่พบข้อมูลที่ค้นหา\n");
     }
+
+    fclose(fp);
 }
 
-void show_all_members() {
-    FILE *fp = fopen("member.txt", "r");
-    if (fp == NULL) {
-        printf("ไม่สามารถเปิดไฟล์ได้\n");
+/* แสดงสมาชิกทั้งหมด */
+void show_all_members(){
+    FILE *fp = fopen("member.txt","r");
+    if(fp == NULL){
+        printf("ไม่พบไฟล์ member.txt\n");
         return;
     }
 
-    char line[256];
-    int id, gender, count = 0;
-    char fullname[100], nickname[50], created_at[20];
-
     printf("\n=== รายชื่อสมาชิกทั้งหมด ===\n");
-    printf("%-5s | %-24s | %-12s | %-6s | %-10s\n", "ID", "ชื่อ-นามสกุล", "ชื่อเล่น", "เพศ", "สมัครเมื่อ");
-    printf("--------------------------------------------------------------------------\n");
+    printf("ID | ชื่อ-นามสกุล | ชื่อเล่น | เพศ | วันที่สมัคร\n");
+    printf("----------------------------------------------------------\n");
 
-    while (fgets(line, sizeof(line), fp)) {
-        if (!(line[0] >= '0' && line[0] <= '9')) {
-            continue;
-        }
-        if (sscanf(line, "%d|%99[^|]|%49[^|]|%d|%19s", &id, fullname, nickname, &gender, created_at) == 5) {
-            printf("%-5d | %-24s | %-12s | %-6s | %-10s\n",
-                   id, fullname, nickname, (gender == 1 ? "ชาย" : "หญิง"), created_at);
+    char line[512];
+    int count = 0;
+    while(fgets(line, sizeof(line), fp)){
+        int id, gender;
+        char fullname[NAME_MAXLEN];
+        char nickname[NICK_MAXLEN];
+        char created_at[DATE_MAXLEN];
+
+        if(sscanf(line, "%d|%127[^|]|%63[^|]|%d|%15[^\n]",
+                  &id, fullname, nickname, &gender, created_at) == 5){
+            printf("%d | %s | %s | %d | %s\n", id, fullname, nickname, gender, created_at);
             count++;
         }
     }
 
-    fclose(fp);
-
-    if (count == 0) {
-        printf("ยังไม่มีข้อมูลสมาชิก\n");
-    } else {
-        printf("--------------------------------------------------------------------------\n");
-        printf("รวมสมาชิกทั้งหมด: %d คน\n", count);
+    if(count == 0){
+        printf("ยังไม่มีสมาชิกในระบบ\n");
+    }else{
+        printf("----------------------------------------------------------\n");
+        printf("จำนวนสมาชิกทั้งหมด: %d คน\n", count);
     }
+
+    fclose(fp);
 }
 
-void menu1_choose (){
-    while(1){
-    printf("1.ลงทะเบียนสมาชิกก๊วน\n");
-    printf("2.ค้นหารายชื่อในระบบ\n");
-    printf("3.แสดงรายชื่อสมาชิกทั้งหมด\n");
-    printf("0.กลับสู่หน้าหลัก\n");
+/* เมนูหลักของระบบสมาชิก – มี 0 เพื่อย้อนกลับแน่นอน */
+void menu1_choose(){
     int menu1;
-    printf("ระบุเมนูที่ต้องการทำงาน :");
-    scanf("%d",&menu1);
-        if(menu1 == 1){
+
+    while(1){
+        printf("\n=== ระบบสมาชิก ===\n");
+        printf("1. ลงทะเบียนสมาชิกก๊วน\n");
+        printf("2. ค้นหารายชื่อในระบบ\n");
+        printf("3. แสดงรายชื่อสมาชิกทั้งหมด\n");
+        printf("0. กลับสู่หน้าหลัก\n");
+        printf("ระบุเมนูที่ต้องการทำงาน : ");
+
+        if(scanf("%d", &menu1) != 1){
+            while(getchar()!='\n' && !feof(stdin)){}
+            continue;
+        }
+
+        if(menu1 == 0){
+            return; // ย้อนกลับไป main.c
+        }else if(menu1 == 1){
             register_member();
-            break;
         }else if(menu1 == 2){
             search_member();
-            break;
         }else if(menu1 == 3){
             show_all_members();
-            break;
-        }else if(menu1 == 0){
-            break;
         }else{
-            printf("ไม่ตรงกับในเมนูโปรดลองอีกครั้ง");
+            printf("ไม่ตรงกับในเมนู โปรดลองอีกครั้ง\n");
         }
     }
 }
