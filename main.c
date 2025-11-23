@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <windows.h>
+
 
 #include "menu1.h"
 #include "menu2.h"
 #include "menu3.h"
+#include "delay.h"
 
 /*
  * main: โปรแกรมหลักของระบบ
@@ -13,17 +17,26 @@
  * - เรียกเมนูย่อยตามตัวเลือกและวนลูปจนกว่าจะกรอก 0 เพื่อออก
  */
 int main (){
+    SetConsoleOutputCP(65001);
 
     int menu;
     while(1){
+        system("cls");
         printf("Badminton Group Payment System\n");
         printf("กรอกหมายเลขเพื่อทำระบบต่อไปนี้\n");
         printf("1.ระบบสมาชิก\n");
         printf("2.เปิดก๊วน\n");
         printf("3.สรุปข้อมูล\n");
         printf("0 เพื่อหยุดโปรแกรม\n");
-        printf("กรอกหมายเลขตามเมนูที่ต้องการ :");
-        scanf("%d" , &menu);
+        printf("กรอกหมายเลขตามเมนูที่ต้องการ : ");
+
+        if(scanf("%d", &menu) != 1){
+            int c;
+            while((c = getchar()) != '\n' && c != EOF) {}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
+            continue;
+        }
 
         input_file();
 
@@ -36,8 +49,10 @@ int main (){
         }else if(menu == 0){
             break;
         }else{
-            printf("กรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง");
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
         }
     }
-    printf("End of program Goodbye :))");
+    printf("End of program Goodbye :))\n");
+    return 0;
 }

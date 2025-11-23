@@ -3,7 +3,8 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
-
+#include <windows.h>
+#include "delay.h"
 #define NAME_MAXLEN 128
 #define NICK_MAXLEN 64
 #define DATE_MAXLEN 16
@@ -15,6 +16,7 @@ void input_file(){
         member = fopen("member.txt","w");
         if(member == NULL){
             printf("ไม่สามารถสร้างไฟล์ member.txt ได้\n");
+            delay(3);
             return;
         }
     }
@@ -59,6 +61,7 @@ void register_member(){
 
     if(strlen(fullname) == 0){
         printf("ยกเลิกการลงทะเบียน (ไม่ได้กรอกชื่อ)\n");
+        delay(3);
         return;
     }
 
@@ -70,10 +73,12 @@ void register_member(){
     if(scanf("%d", &gender) != 1){
         while(getchar()!='\n' && !feof(stdin)){}
         printf("ข้อมูลไม่ถูกต้อง ยกเลิกการลงทะเบียน\n");
+        delay(3);
         return;
     }
     if(gender == 0){
         printf("ยกเลิกการลงทะเบียน\n");
+        delay(3);
         return;
     }
 
@@ -82,6 +87,7 @@ void register_member(){
     fp = fopen("member.txt","a");
     if(fp == NULL){
         printf("ไม่สามารถเปิด member.txt เพื่อเขียนได้\n");
+        delay(3);
         return;
     }
 
@@ -89,6 +95,7 @@ void register_member(){
     fclose(fp);
 
     printf("ลงทะเบียนสำเร็จ! รหัสสมาชิกของคุณคือ: %d\n", new_id);
+    delay(3);
 }
 
 /* ค้นหาสมาชิก */
@@ -96,11 +103,13 @@ void search_member(){
     FILE *fp = fopen("member.txt","r");
     if(fp == NULL){
         printf("ไม่พบไฟล์ member.txt\n");
+        delay(3);
         return;
     }
 
     int mode;
-    printf("\n=== ค้นหาสมาชิก ===\n");
+    system("cls");
+    printf("=== ค้นหาสมาชิก ===\n");
     printf("1. ค้นหาด้วยรหัสสมาชิก\n");
     printf("2. ค้นหาด้วยชื่อเล่น\n");
     printf("3. ค้นหาด้วยชื่อ-นามสกุล\n");
@@ -108,6 +117,8 @@ void search_member(){
     printf("เลือก: ");
     if(scanf("%d", &mode) != 1){
         while(getchar()!='\n' && !feof(stdin)){}
+        printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+        delay(2);
         fclose(fp);
         return;
     }
@@ -123,6 +134,8 @@ void search_member(){
         printf("ป้อนรหัสสมาชิก (0 = ย้อนกลับ): ");
         if(scanf("%d", &search_id) != 1){
             while(getchar()!='\n' && !feof(stdin)){}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
             fclose(fp);
             return;
         }
@@ -130,7 +143,7 @@ void search_member(){
             fclose(fp);
             return;
         }
-    }else{
+    }else if (mode == 2 || mode == 3){
         printf("ป้อนคำที่ต้องการค้นหา (0 = ย้อนกลับ): ");
         getchar();
         fgets(key, sizeof(key), stdin);
@@ -139,6 +152,11 @@ void search_member(){
             fclose(fp);
             return;
         }
+    }
+    else {
+        printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+        delay(2);
+        return;
     }
 
     printf("\nผลการค้นหา:\n");
@@ -170,11 +188,12 @@ void search_member(){
             }
         }
     }
-
     if(!found){
         printf("ไม่พบข้อมูลที่ค้นหา\n");
     }
-
+    printf("พิมพ์ 0 เพื่อย้อนกลับ : ");
+    int _tmp;
+    scanf("%d", &_tmp);
     fclose(fp);
 }
 
@@ -183,6 +202,7 @@ void show_all_members(){
     FILE *fp = fopen("member.txt","r");
     if(fp == NULL){
         printf("ไม่พบไฟล์ member.txt\n");
+        delay(3);
         return;
     }
 
@@ -211,7 +231,9 @@ void show_all_members(){
         printf("----------------------------------------------------------\n");
         printf("จำนวนสมาชิกทั้งหมด: %d คน\n", count);
     }
-
+    printf("พิมพ์ 0 เพื่อย้อนกลับ :");
+    int _tmp;
+    scanf("%d", &_tmp);
     fclose(fp);
 }
 
@@ -220,7 +242,8 @@ void menu1_choose(){
     int menu1;
 
     while(1){
-        printf("\n=== ระบบสมาชิก ===\n");
+        system("cls");
+        printf("=== ระบบสมาชิก ===\n");
         printf("1. ลงทะเบียนสมาชิกก๊วน\n");
         printf("2. ค้นหารายชื่อในระบบ\n");
         printf("3. แสดงรายชื่อสมาชิกทั้งหมด\n");
@@ -241,7 +264,8 @@ void menu1_choose(){
         }else if(menu1 == 3){
             show_all_members();
         }else{
-            printf("ไม่ตรงกับในเมนู โปรดลองอีกครั้ง\n");
+            printf("\nไม่ตรงกับในเมนู โปรดลองอีกครั้ง\n");
+            delay(3);
         }
     }
 }

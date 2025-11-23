@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "menu2.h"
+#include "delay.h"
 
 /*
  * menu2_choose: เมนูหลักสำหรับการเปิดก๊วนและจัดการข้อมูลรายวัน
@@ -25,6 +26,7 @@ void menu2_choose(void) {
 
     if (!open_or_create_daily(daily_path)) {
         printf("ไม่สามารถเปิดหรือสร้างไฟล์รายวันได้\n");
+        delay(3);
         return;
     }
 
@@ -36,6 +38,7 @@ void menu2_choose(void) {
     }
 
     while (1) {
+        system("cls");
         printf("\n=== เมนูจัดการวันที่ %s ===\n", date);
         printf("1. ลงชื่อเบิกลูก\n");
         printf("2. สรุปยอดที่ต้องชำระ (รายบุคคล)\n");
@@ -48,6 +51,8 @@ void menu2_choose(void) {
 
         if (scanf("%d", &sub) != 1) {
             while (getchar()!='\n' && !feof(stdin)) {}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
             continue;
         }
 
@@ -61,6 +66,8 @@ void menu2_choose(void) {
             printf("จำนวนผู้เล่นที่จะลงชื่อ (0 = ยกเลิก): ");
             if (scanf("%d", &count_player) != 1) {
                 while (getchar()!='\n' && !feof(stdin)) {}
+                printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+                delay(2);
                 continue;
             }
             if (count_player <= 0) continue;
@@ -151,7 +158,6 @@ void menu2_choose(void) {
                            sel.fullname, sel.nickname, add_qty);
                 }
             }
-
         } else if (sub == 2) {
             /* -------- เมนู 2: สรุปยอดที่ต้องชำระ (รายบุคคล) -------- */
             int mode;
@@ -184,6 +190,7 @@ void menu2_choose(void) {
             size_t dcount = 0;
             if (!search_daily(daily_path, by, key, &darr, &dcount) || dcount == 0) {
                 printf("ไม่พบข้อมูลในไฟล์รายวันวันนี้\n");
+                delay(3);
                 free(darr);
                 continue;
             }
@@ -298,6 +305,7 @@ void menu2_choose(void) {
             size_t os_cnt = 0;
             if (!search_os("OSpayment.txt", by, key, &os_arr, &os_cnt) || os_cnt == 0) {
                 printf("ไม่พบยอดค้างของสมาชิกนี้\n");
+                delay(3);
                 free(os_arr);
                 continue;
             }
@@ -382,5 +390,6 @@ void menu2_choose(void) {
         } else {
             printf("เมนูไม่ถูกต้อง โปรดลองอีกครั้ง\n");
         }
+        delay(3);
     }
 }
