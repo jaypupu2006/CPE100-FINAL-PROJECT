@@ -312,7 +312,7 @@ void menu2_choose(void) {
 
             printf("พบยอดค้าง %zu รายการ:\n", os_cnt);
             for (size_t j=0; j<os_cnt; j++) {
-                printf("%zu) id=%d %s (%s) date=%s os=%d\n",
+                printf("%zu) ID=%d %s (%s) วันที่ =%s ค้างจ่าย=%d\n",
                        j+1,
                        os_arr[j].member_id,
                        os_arr[j].fullname,
@@ -352,7 +352,7 @@ void menu2_choose(void) {
             if (!remove_os_entry("OSpayment.txt", &chosen)) {
                 printf("ลบยอดค้างไม่สำเร็จ\n");
             } else {
-                printf("ชำระหนี้ค้างเรียบร้อย และลบออกจาก OSpayment.txt แล้ว\n");
+                printf("ชำระหนี้ค้างเรียบร้อย และลบออกจากค้างจ่ายแล้ว\n");
             }
 
         } else if (sub == 4) {
