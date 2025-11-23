@@ -5,7 +5,11 @@
 #include "menu2.h"
 #include "menu3.h"
 
-/* helper: เช็คว่าไฟล์มีอยู่จริงไหม */
+/*
+ * file_exists: ช่วยตรวจว่าไฟล์ที่กำหนดมีอยู่หรือไม่
+ * - พารามิเตอร์: `path` เส้นทางไฟล์ที่จะตรวจ
+ * - ผลลัพธ์: คืนค่า 1 เมื่อไฟล์เปิดได้ (มีอยู่), 0 เมื่อไม่พบหรือเปิดไม่ได้
+ */
 static int file_exists(const char *path){
     FILE *fp=fopen(path,"r");
     if(!fp) return 0;
@@ -13,7 +17,11 @@ static int file_exists(const char *path){
     return 1;
 }
 
-/* helper: print เนื้อไฟล์ทั้งไฟล์ออกหน้าจอ */
+/*
+ * print_file: พิมพ์เนื้อหาทั้งหมดของไฟล์ไปยัง stdout
+ * - พารามิเตอร์: `path` เส้นทางไฟล์ที่จะพิมพ์
+ * - พฤติกรรม: ถ้าไม่พบไฟล์ จะแสดงข้อความแจ้งและคืนค่าออกโดยไม่ทำอะไร
+ */
 static void print_file(const char *path){
     FILE *fp=fopen(path,"r");
     if(!fp){
@@ -25,7 +33,16 @@ static void print_file(const char *path){
     fclose(fp);
 }
 
-/* สรุปรายวัน + เขียนไฟล์สรุป (full=1 รายละเอียด, full=0 แบบย่อ) */
+/*
+ * summarize_daily_and_write: สรุปข้อมูลจากไฟล์รายวันและเขียนไฟล์สรุป
+ * - พารามิเตอร์:
+ *     `daily_path` - ไฟล์รายวันที่อ่าน (เช่น "DD-MM-YYYY.txt")
+ *     `out_path` - ไฟล์สรุปที่ต้องการเขียนลง (จะเขียนทับถ้ามีอยู่)
+ *     `full` - ถ้าเป็น 1 จะเขียนสรุปรายละเอียดพร้อมรายชื่อผู้เล่น, 0 จะเขียนแบบย่อ
+ * - พฤติกรรม: อ่านบรรทัดข้อมูลผู้เล่นจากไฟล์รายวัน, คำนวณสถิติต่าง ๆ
+ *   และเขียนผลลงไฟล์สรุปพร้อม BOM UTF-8
+ * - คืนค่า: 1 เมื่อสำเร็จ, 0 เมื่อไฟล์ต้นทางหรือไฟล์ผลลัพธ์ไม่สามารถเปิดได้
+ */
 static int summarize_daily_and_write(const char *daily_path, const char *out_path, int full){
     FILE *fp=fopen(daily_path,"r");
     if(!fp){
@@ -120,7 +137,15 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
     return 1;
 }
 
-/* สรุปรายเดือนจากไฟล์รายวัน DD-MM-YYYY.txt ในโฟลเดอร์เดียวกับโปรแกรม */
+/*
+ * summarize_month_and_write: สรุปรายเดือนจากไฟล์รายวัน (DD-MM-YYYY.txt)
+ * - พารามิเตอร์:
+ *     `month_yyyy` - เดือนและปี รูปแบบ "MM-YYYY" เพื่อค้นหาไฟล์รายวันทั้งหมดของเดือน
+ *     `out_path` - ไฟล์สรุปรายเดือนที่จะเขียนผล
+ * - พฤติกรรม: สแกนไฟล์รายวันตั้งแต่ 01 ถึง 31 ของเดือนที่กำหนด,
+ *   รวมยอดลูก, รายได้, การชำระ และยอดค้างที่อยู่ใน `OSpayment.txt` สำหรับเดือนนั้น
+ * - คืนค่า: 1 เมื่อเขียนไฟล์สรุปรายเดือนสำเร็จ, 0 เมื่อไม่สามารถเขียนไฟล์ผลลัพธ์ได้
+ */
 static int summarize_month_and_write(const char *month_yyyy, const char *out_path){
     char path[128];
     int day, total_days=0;
@@ -206,7 +231,12 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
     return 1;
 }
 
-/* เมนูสรุปข้อมูลหลัก – มี 0 ย้อนกลับทุกขั้นตอนสำคัญ */
+/*
+ * menu3_choose: เมนูสรุปข้อมูล (รายวัน/รายเดือน)
+ * - ไม่มีพารามิเตอร์
+ * - พฤติกรรม: ผู้ใช้เลือกว่าจะสรุปรายวันหรือรายเดือน,
+ *   โปรแกรมจะแสดงไฟล์สรุปถ้ามี, หรือสร้างแล้วพิมพ์ออกหน้าจอ
+ */
 void menu3_choose(void){
     int sub;
 

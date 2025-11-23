@@ -4,6 +4,11 @@
 #include <ctype.h>
 #include "menu2.h"
 
+/*
+ * dupstr: สำเนาสตริงโดยคืน pointer ที่ต้อง free เมื่อเลิกใช้
+ * - พารามิเตอร์: `s` สตริงต้นฉบับ (ไม่เป็น NULL)
+ * - คืนค่า: pointer ใหม่ ที่ต้องถูก free โดยผู้เรียกเมื่อไม่ใช้งาน
+ */
 static char* dupstr(const char* s){
     size_t n=strlen(s)+1;
     char* p=(char*)malloc(n);
@@ -11,6 +16,11 @@ static char* dupstr(const char* s){
     return p;
 }
 
+/*
+ * open_or_create_daily: ตรวจว่ามีไฟล์รายวันอยู่หรือไม่ ถ้าไม่มีให้สร้าง
+ * - พารามิเตอร์: `daily_path` ชื่อไฟล์รายวัน (เช่น "DD-MM-YYYY.txt")
+ * - คืนค่า: 1 เมื่อสำเร็จ (ไฟล์พร้อมใช้งาน) หรือ 0 เมื่อเกิดข้อผิดพลาด
+ */
 int open_or_create_daily(const char *daily_path) {
     FILE *fp = fopen(daily_path, "r");
     if (fp) { fclose(fp); return 1; }
@@ -21,6 +31,11 @@ int open_or_create_daily(const char *daily_path) {
     return 1;
 }
 
+/*
+ * load_prices: โหลดค่าราคา (`SHUTTLE_PRICE`, `COURT_FEE_PER_PERSON`) จากไฟล์ config
+ * - พารามิเตอร์: `config_path` เส้นทางไฟล์ config, `out` โครงสร้างผลลัพธ์
+ * - คืนค่า: 1 เมื่ออ่านและพบค่าทั้งสอง, 0 เมื่อล้มเหลว
+ */
 int load_prices(const char *config_path, Prices *out) {
     FILE *fp = fopen(config_path, "r");
     if (!fp) return 0;
@@ -34,6 +49,11 @@ int load_prices(const char *config_path, Prices *out) {
     return s&&c;
 }
 
+/*
+ * save_prices: เขียนค่าราคาไปที่ไฟล์ config
+ * - พารามิเตอร์: `config_path` เส้นทางไฟล์ config, `in` ค่าราคาที่ต้องการบันทึก
+ * - คืนค่า: 1 เมื่อเขียนสำเร็จ, 0 เมื่อไม่สามารถเปิดไฟล์ได้
+ */
 int save_prices(const char *config_path, const Prices *in) {
     FILE *fp = fopen(config_path, "w");
     if (!fp) return 0;
@@ -43,6 +63,14 @@ int save_prices(const char *config_path, const Prices *in) {
     return 1;
 }
 
+/*
+ * search_members: ค้นหาสมาชิกจากไฟล์ `member.txt`
+ * - พารามิเตอร์: `member_path` เส้นทางไฟล์สมาชิก,
+ *   `by` วิธีค้นหา (BY_ID/BY_NICKNAME/BY_FULLNAME), `key` คำค้น,
+ *   `out_arr` จะรับ pointer ไปยัง array ที่จองด้วย malloc (ต้อง free โดยผู้เรียก),
+ *   `out_count` จำนวนรายการที่พบ
+ * - คืนค่า: 1 เมื่อทำงานสำเร็จ (แม้ไม่พบก็คืน 1 แต่ `out_count` = 0), 0 เมื่อเกิดข้อผิดพลาด I/O
+ */
 int search_members(const char *member_path, SearchBy by, const char *key, Member **out_arr, size_t *out_count) {
     FILE *fp = fopen(member_path, "r");
     if (!fp) return 0;
@@ -71,6 +99,10 @@ int search_members(const char *member_path, SearchBy by, const char *key, Member
     return 1;
 }
 
+/*
+ * search_daily: ค้นหารายการในไฟล์รายวัน (daily file)
+ * - พารามิเตอร์และการคืนค่าเหมือนกับ `search_members` แต่อ่านโครงข้อมูล `DailyEntry`
+ */
 int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntry **out_arr, size_t *out_count) {
     FILE *fp = fopen(daily_path, "r");
     if (!fp) return 0;
@@ -102,6 +134,10 @@ int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntr
     return 1;
 }
 
+/*
+ * search_os: ค้นหารายการค้างชำระจาก `OSpayment.txt`
+ * - พารามิเตอร์และการคืนค่าเหมือนกับ `search_members` แต่อ่านโครงข้อมูล `OSEntry`
+ */
 int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_arr, size_t *out_count) {
     FILE *fp = fopen(os_path, "r");
     if (!fp) return 0;
@@ -131,6 +167,16 @@ int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_a
     return 1;
 }
 
+/*
+ * upsert_daily_entry: เพิ่มหรืออัปเดตรายการของสมาชิกในไฟล์รายวัน
+ * - พารามิเตอร์:
+ *   `daily_path` - ไฟล์รายวัน, `prices` - ข้อมูลราคา, `m` - สมาชิกที่ต้องการอัปเดต,
+ *   `add_shuttle_qty` - จำนวนลูกที่เพิ่ม (ถ้าเพิ่มเป็นรายการใหม่จะใช้ค่านี้),
+ *   `method` - วิธีการชำระเงิน (PAY_NONE/PAY_CASH/PAY_TRANSFER/PAY_OS),
+ *   `pay_today` - จำนวนเงินที่ชำระวันนี้ (ถ้ามี), `pay_os` - จำนวนที่ชำระจากค้าง (ถ้ามี)
+ * - พฤติกรรม: อ่านไฟล์ทั้งหมดมาไว้ในหน่วยความจำ, แก้บรรทัดที่ตรงกับ `m->id` หรือเพิ่มใหม่ถ้าไม่พบ
+ * - คืนค่า: 1 เมื่อสำเร็จ, 0 เมื่อเกิดข้อผิดพลาด (I/O หรือหน่วยความจำ)
+ */
 int upsert_daily_entry(const char *daily_path, const Prices *prices, const Member *m, int add_shuttle_qty, PayMethod method, int pay_today, int pay_os) {
     FILE *fp = fopen(daily_path, "r");
     if (!fp) return 0;
@@ -187,6 +233,11 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
     return 1;
 }
 
+/*
+ * append_os: เพิ่มรายการค้างชำระใหม่ลงในไฟล์ `OSpayment.txt`
+ * - พารามิเตอร์: `os_path` ไฟล์ค้างชำระ, `m` สมาชิก, `date_ddmmyyyy` วันที่, `os_amount` ยอดค้าง, `note` หมายเหตุ
+ * - คืนค่า: 1 เมื่อเขียนสำเร็จ, 0 เมื่อเปิดไฟล์ล้มเหลว
+ */
 int append_os(const char *os_path, const Member *m, const char *date_ddmmyyyy, int os_amount, const char *note) {
     FILE *fp = fopen(os_path, "a");
     if (!fp) return 0;
@@ -195,6 +246,11 @@ int append_os(const char *os_path, const Member *m, const char *date_ddmmyyyy, i
     return 1;
 }
 
+/*
+ * remove_os_entry: ลบรายการค้างชำระที่ตรงกับ `entry` (โดยเทียบ member_id และ date)
+ * - พารามิเตอร์: `os_path` ไฟล์ค้างชำระ, `entry` ข้อมูลที่ต้องการลบ
+ * - คืนค่า: 1 เมื่อสำเร็จ, 0 เมื่อไม่สามารถอ่านไฟล์ต้นทางได้
+ */
 int remove_os_entry(const char *os_path, const OSEntry *entry) {
     FILE *fp = fopen(os_path, "r");
     if (!fp) return 0;
@@ -229,6 +285,12 @@ int remove_os_entry(const char *os_path, const OSEntry *entry) {
     return 1;
 }
 
+/*
+ * summarize_daily: คำนวณและแสดงสถิติจากไฟล์รายวัน
+ * - พารามิเตอร์: `daily_path` ไฟล์รายวัน, `verbose` 1 = แสดงรายละเอียดบนหน้าจอ, 0 = เงียบ
+ * - คำนวณจำนวนผู้เล่น, จำนวนลูกรวม, รายได้, การชำระแบบต่าง ๆ และพิมพ์เมื่อ verbose=1
+ * - คืนค่า: 1 เมื่อทำงานเสร็จ (หรือ 0 หากเปิดไฟล์ล้มเหลว)
+ */
 int summarize_daily(const char *daily_path, int verbose) {
     FILE *fp = fopen(daily_path, "r");
     if (!fp) return 0;
