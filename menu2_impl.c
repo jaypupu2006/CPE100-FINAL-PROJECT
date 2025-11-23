@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "menu2.h"
+#include "delay.h"
 
 static char* dupstr(const char* s){
     size_t n=strlen(s)+1;
@@ -263,5 +264,8 @@ int summarize_daily(const char *daily_path, int verbose) {
         printf("ยอดได้รับจริง (เงินสด %d, โอน %d, ค้าง %d)\n", paid_cash, paid_transfer, paid_os);
         printf("รวมรายได้วันนี้ %d บาท\n", paid_total);
     }
+    int choose;
+    printf("พิมพ์ 0 เพื่อย้อนกลับ : ");
+    scanf("%d", &choose);
     return 1;
 }
