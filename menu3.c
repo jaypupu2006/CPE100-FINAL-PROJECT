@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "menu2.h"
 #include "menu3.h"
+#include "delay.h"
 
 /* helper: เช็คว่าไฟล์มีอยู่จริงไหม */
 static int file_exists(const char *path){
@@ -18,10 +19,14 @@ static void print_file(const char *path){
     FILE *fp=fopen(path,"r");
     if(!fp){
         printf("ไม่พบไฟล์: %s\n", path);
+        delay(3);
         return;
     }
     char buf[512];
     while(fgets(buf,sizeof(buf),fp)) fputs(buf,stdout);
+    int _tmp;
+    printf("พิมพ์ 0 เพื่อย้อนกลับ :");
+    scanf("%d", &_tmp);
     fclose(fp);
 }
 
@@ -30,11 +35,13 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
     FILE *fp=fopen(daily_path,"r");
     if(!fp){
         printf("ไม่พบไฟล์รายวัน: %s\n", daily_path);
+        delay(3);
         return 0;
     }
     FILE *fo=fopen(out_path,"w");
     if(!fo){
         printf("ไม่สามารถเขียนไฟล์สรุป: %s\n", out_path);
+        delay(3);
         fclose(fp);
         return 0;
     }
@@ -115,7 +122,9 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
         fprintf(fo,"ยอดที่ได้รับจากการชำระค้าง|%d\n", received_from_os);
         fprintf(fo,"ยอดรับรวมทั้งหมด|%d\n", received_today + received_from_os);
     }
-
+    int _tmp;
+    printf("พิมพ์ 0 เพื่อย้อนกลับ :");
+    scanf("%d", &_tmp);
     fclose(fo);
     return 1;
 }
@@ -181,6 +190,7 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
     FILE *fo=fopen(out_path,"w");
     if(!fo){
         printf("ไม่สามารถเขียนไฟล์สรุปรายเดือน: %s\n", out_path);
+        delay(3);
         return 0;
     }
 
@@ -201,7 +211,6 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
     fprintf(fo,"รับจากชำระค้าง|%d\n", paid_from_os);
     fprintf(fo,"รวมรับจริงทั้งหมด|%d\n", paid_cash+paid_transfer+paid_from_os);
     fprintf(fo,"ยอดค้างจ่ายในเดือนนี้|%d\n", outstanding_this_month);
-
     fclose(fo);
     return 1;
 }
@@ -209,14 +218,16 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
 /* เมนูสรุปข้อมูลหลัก – มี 0 ย้อนกลับทุกขั้นตอนสำคัญ */
 void menu3_choose(void){
     int sub;
-
-    printf("\n=== เมนูสรุปข้อมูล ===\n");
+    system("cls");
+    printf("=== เมนูสรุปข้อมูล ===\n");
     printf("1. สรุปข้อมูลรายวัน\n");
     printf("2. สรุปข้อมูลรายเดือน\n");
     printf("0. ย้อนกลับ\n");
     printf("เลือก: ");
     if(scanf("%d",&sub)!=1){
         while(getchar()!='\n' && !feof(stdin)){}
+        printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+        delay(2);
         return;
     }
     if(sub==0) return;
@@ -228,6 +239,8 @@ void menu3_choose(void){
         printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ): ");
         if(scanf("%15s",date)!=1){
             while(getchar()!='\n' && !feof(stdin)){}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
             return;
         }
         if(strcmp(date,"0")==0) return;
@@ -242,36 +255,49 @@ void menu3_choose(void){
         printf("เลือก: ");
         if(scanf("%d",&mode)!=1){
             while(getchar()!='\n' && !feof(stdin)){}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
             return;
         }
         if(mode==0) return;
 
         if(mode==1){
-            if(file_exists(out_full)){
+            if(file_exists(out_full)) {
                 print_file(out_full);
-            }else if(file_exists(inpath)){
+            }
+            else if(file_exists(inpath)) {
                 summarize_daily(inpath,1);
-                if(!summarize_daily_and_write(inpath,out_full,1))
+                if (!summarize_daily_and_write(inpath,out_full,1)) {
                     printf("บันทึกไฟล์สรุปแบบละเอียดล้มเหลว\n");
-                else
+                    delay(3);
+                }
+                else 
                     print_file(out_full);
-            }else{
+            }
+            else {
                 printf("ไม่พบไฟล์รายวัน: %s\n", inpath);
+                delay(3);
             }
         }else if(mode==2){
-            if(file_exists(out_brief)){
+            if(file_exists(out_brief)) {
                 print_file(out_brief);
-            }else if(file_exists(inpath)){
+            }
+            else if(file_exists(inpath)) {
                 summarize_daily(inpath,1);
-                if(!summarize_daily_and_write(inpath,out_brief,0))
+                if (!summarize_daily_and_write(inpath,out_brief,0)) {
                     printf("บันทึกไฟล์สรุปแบบย่อล้มเหลว\n");
+                    delay(3);
+                }
                 else
                     print_file(out_brief);
-            }else{
+            } 
+            else {
                 printf("ไม่พบไฟล์รายวัน: %s\n", inpath);
+                delay(3);
             }
-        }else{
+        }else {
             printf("เมนูไม่ถูกต้อง\n");
+            delay(3);
         }
 
     } else if(sub==2){
@@ -279,6 +305,8 @@ void menu3_choose(void){
         printf("กรอกเดือน/ปี (MM-YYYY) (0 = ย้อนกลับ): ");
         if(scanf("%7s",month_yyyy)!=1){
             while(getchar()!='\n' && !feof(stdin)){}
+            printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+            delay(2);
             return;
         }
         if(strcmp(month_yyyy,"0")==0) return;
@@ -290,6 +318,7 @@ void menu3_choose(void){
         }else{
             if(!summarize_month_and_write(month_yyyy,out_path)){
                 printf("สรุปรายเดือนล้มเหลวหรือไม่พบข้อมูลไฟล์รายวัน (.txt)\n");
+                delay(3);
             }else{
                 print_file(out_path);
             }
