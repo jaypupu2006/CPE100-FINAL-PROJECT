@@ -13,9 +13,16 @@
  * - เมนูย่อยมีการลงชื่อเบิกลูก, สรุปยอดรายบุคคล, ค้นหายอดค้าง, สรุปรายวัน, และปรับราคา
  */
 
-static void sub1(char *daily_path, Prices *prices)
+static void sub1(const char *daily_path)
 {
     /* -------- เมนู 1: ลงชื่อเบิกลูก -------- */
+    Prices prices;
+    if (!load_prices("input/config.txt", &prices)) // เปิดเพื่ออ่านค่าคอร์ท และค่าลูก
+    {
+        printf("ไม่พบ config.txt ในโฟลเดอร์ \"input\" จะใช้ค่าเริ่มต้น\n");
+        prices.shuttle_price = 100;
+        prices.court_fee_per_person = 100;
+    }
 
     int count_player; // จำนวนผู้เล่นที่จะหาร
     while (1)
@@ -28,13 +35,11 @@ static void sub1(char *daily_path, Prices *prices)
             printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
             delay(3);
             continue;
-            ;
         }
         if (count_player == 0)
             return;
-        if (count_player <= 0) // กรอกน้อยกว่าหรือเท่ากับ 0 ไม่ได้
+        if (count_player < 0) // กรอกน้อยกว่า 0 ไม่ได้
             continue;
-        ;
         if (count_player > 0 && count_player <= 4)
             break;
     }
@@ -47,22 +52,21 @@ static void sub1(char *daily_path, Prices *prices)
             char key[NAME_MAXLEN];
             Member *member = NULL; // pointer arr ชี้ไปที่ struct ชื่อ Member ถูกประกาศใน menu2.h -- Define NULL ไว้ก่อน
             int member_count = 0;  // int ตัวแปรชนิดหนึ่งที่
+
             printf("\n[ผู้เล่นคนที่ %d]\n", i + 1);
             printf("วิธีค้นหา 1 = id, 2 = ชื่อเล่น, 3 = ชื่อ-นามสกุล, 0 = ยกเลิก : ");
 
             if (scanf("%d", &mode) != 1) // ไม่ใช่ตัวเลข
             {
                 printf("กรุณากรอกตัวเลขเท่านั้น!\n");
-                int c;
-                while ((c = getchar()) != '\n' && c != EOF)
-                    ;
+                delete_buffle();
                 continue;
             }
 
             if (mode == 0)
                 return; // ยกเลิกเมนู
 
-            if (mode < 1 || mode > 3) // ไม่มีเมนูเลขนี้
+            if (mode < 0 || mode > 3) // ไม่มีเมนูเลขนี้
             {
                 printf("ตัวเลือกไม่ถูกต้อง โปรดลองใหม่!\n");
                 continue;
@@ -76,10 +80,7 @@ static void sub1(char *daily_path, Prices *prices)
             else
                 by = BY_FULLNAME;
 
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF)
-                ; // buffer
-
+            delete_buffle();
             printf("กรอกคำค้นหา (0 = ยกเลิก) : ");
             fgets(key, sizeof(key), stdin);
             key[strcspn(key, "\n")] = '\0';
@@ -120,7 +121,7 @@ static void sub1(char *daily_path, Prices *prices)
                 {
                     delete_buffle();
                     printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
-                    ;
+                    free(member);
                     delay(3);
                     continue;
                 }
@@ -131,10 +132,11 @@ static void sub1(char *daily_path, Prices *prices)
                 if (pick < 1 || pick > member_count)
                 {
                     printf("หมายเลขไม่ถูกต้อง\n");
+                    free(member);
                     delay(3);
                     continue;
                 }
-                pick_index = (int)(pick - 1);
+                pick_index = pick - 1;
             }
 
             Member select = member[pick_index]; // ข้อมูลที่เลือกเก็บใน select
@@ -157,7 +159,7 @@ static void sub1(char *daily_path, Prices *prices)
                 continue;
             }
 
-            if (!upsert_daily_entry(&daily_path, &prices, &select, add_qty, count_player, PAY_OS, 0, 0)) // PAY_OS คือ enum = 3
+            if (!upsert_daily_entry(daily_path, &prices, &select, add_qty, count_player, PAY_OS, 0, 0)) // PAY_OS คือ enum = 3
             {
                 printf("บันทึกข้อมูลรายวันล้มเหลว\n");
             }
@@ -169,8 +171,16 @@ static void sub1(char *daily_path, Prices *prices)
     }
 }
 
-static void sub2(char *daily_path, Prices *prices)
-{
+static void sub2(char *daily_path)
+{   
+    Prices prices;
+    if (!load_prices("input/config.txt", &prices)) // เปิดเพื่ออ่านค่าคอร์ท และค่าลูก
+    {
+        printf("ไม่พบ config.txt ในโฟลเดอร์ \"input\" จะใช้ค่าเริ่มต้น\n");
+        prices.shuttle_price = 100;
+        prices.court_fee_per_person = 100;
+    }
+
     while (1)
     {
         int mode;
@@ -241,7 +251,7 @@ static void sub2(char *daily_path, Prices *prices)
                        daily[j].member_id,
                        daily[j].nickname,
                        daily[j].gender,
-                       prices->shuttle_price,
+                       prices.shuttle_price,
                        daily[j].shuttle_qty,
                        daily[j].amount_today);
             }
@@ -276,16 +286,17 @@ static void sub2(char *daily_path, Prices *prices)
 
         printf("\n=== ข้อมูลวันนี้ของสมาชิก ===\n");
         printf("-----------------------------------------------------------------------------\n");
-        printf("\n   |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | จำนวนลูกที่เล่น | รวมยอด |\n");
+        printf("\n |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | จำนวนลูกที่เล่น | รวมยอด |\n");
         printf("-----------------------------------------------------------------------------\n");
-        printf("%d) |%4d  | %s | %s | %-4s | %5d  | %5d      | %5d  |\n", // แสดงทีละรายการ
-               j + 1,
-               daily[j].member_id,
-               daily[j].nickname,
-               daily[j].gender,
-               prices->shuttle_price,
-               daily[j].shuttle_qty,
-               daily[j].amount_today);
+        // แสดงทีละรายการ
+        printf(" |%4d  | %s | %s | %-4s | %5d  | %5d      | %5d  |\n",
+               d.member_id,
+               d.fullname,
+               d.nickname,
+               d.gender,
+               prices.shuttle_price,
+               d.shuttle_qty,
+               d.amount_today);
         printf("-----------------------------------------------------------------------------\n");
 
         int act;
@@ -370,7 +381,8 @@ static void sub3()
         getchar();
         fgets(key, sizeof(key), stdin);
         key[strcspn(key, "\n")] = '\0';
-        trime(key);
+        trim(key);
+
         if (strcmp(key, "0") == 0) // กรอก 0 ออก
             continue;
 
@@ -421,7 +433,7 @@ static void sub3()
         {
             printf("หมายเลขไม่ถูกต้อง\n");
             free(os_arr);
-            dalay(3);
+            delay(3);
             continue;
         }
 
@@ -469,7 +481,7 @@ static void sub5(Prices *prices)
         if (p == 0)
             return;
         prices->shuttle_price = p;
-        save_prices("input/config.txt", &prices);
+        save_prices("input/config.txt", prices);
         printf("บันทึกราคาลูกใหม่แล้ว\n");
         printf("\nพิมพ์ 0 เพื่อย้อนกลับ : "); // พิมพ์อะไรก็ได้
         int _tmp;
@@ -495,7 +507,7 @@ static void sub6(Prices *prices)
         if (p == 0)
             continue;
         prices->court_fee_per_person = p;
-        save_prices("config.txt", &prices);
+        save_prices("config.txt", prices);
         printf("บันทึกค่าสนามใหม่แล้ว\n");
         printf("\nพิมพ์ 0 เพื่อย้อนกลับ : "); // พิมพ์อะไรก็ได้
         int _tmp;
@@ -531,12 +543,12 @@ void menu2_choose()
         return;
     }
 
-    if (!load_prices("input/config.txt", &prices)) // เปิดเพื่ออ่านค่าคอร์ท และค่าลูก
+    /*if (!load_prices("input/config.txt", &prices)) // เปิดเพื่ออ่านค่าคอร์ท และค่าลูก
     {
         printf("ไม่พบ config.txt ในโฟลเดอร์ \"input\" จะใช้ค่าเริ่มต้น\n");
         prices.shuttle_price = 100;
         prices.court_fee_per_person = 100;
-    }
+    }*/
 
     while (1)
     {
@@ -567,12 +579,12 @@ void menu2_choose()
         if (sub == 1)
         {
             /* -------- เมนู 1: ลงชื่อเบิกลูก -------- */
-            sub1(&daily_path, &prices);
+            sub1(daily_path);
         }
         else if (sub == 2)
         {
             /* -------- เมนู 2: สรุปยอดที่ต้องชำระ (รายบุคคล) -------- */
-            sub2(&daily_path);
+            sub2(daily_path);
         }
         else if (sub == 3)
         {

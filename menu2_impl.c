@@ -112,12 +112,11 @@ int search_members(SearchBy by, const char *key, Member **out_arr, int *out_coun
     if (fp == NULL)
     {
         printf("ไม่สามารถเปิด member.txt\n");
-        input_file(); // ไปเช็คอีกครั้งว่าทำไมไม่สามารถอ่านได้
         delay(3);
         return;
     }
     Member *member = NULL; // NULL เพื่อให้สามารถใช้ realloc ข้างล่างได้
-    size_t count = 0;
+    int count = 0;
     char line[500];
     while (fgets(line, sizeof(line), fp))
     {
@@ -155,13 +154,13 @@ int search_members(SearchBy by, const char *key, Member **out_arr, int *out_coun
  * search_daily: ค้นหารายการในไฟล์รายวัน (daily file)
  * - พารามิเตอร์และการคืนค่าเหมือนกับ `search_members` แต่อ่านโครงข้อมูล `DailyEntry`
  */
-int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntry **out_arr, size_t *out_count)
+int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntry **out_arr, int *out_count)
 {
     FILE *fp = fopen(daily_path, "r");
     if (!fp)
         return 0;
     DailyEntry *arr = NULL;
-    size_t count = 0;
+    int count = 0;
     char line[512];
     while (fgets(line, sizeof(line), fp))
     {
@@ -204,7 +203,7 @@ int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntr
  * search_os: ค้นหารายการค้างชำระจาก `OSpayment.txt`
  * - พารามิเตอร์และการคืนค่าเหมือนกับ `search_members` แต่อ่านโครงข้อมูล `OSEntry`
  */
-int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_arr, size_t *out_count)
+int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_arr, int *out_count)
 {
     FILE *fp = fopen(os_path, "r"); // เปิดอ่าน
     if (!fp)
@@ -215,7 +214,7 @@ int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_a
     }
 
     OSEntry *arr = NULL; // pointer to strcut
-    size_t count = 0;
+    int count = 0;
     char line[512];
     while (fgets(line, sizeof(line), fp)) // อ่านค่าทีละบรรทัดในไฟล์
     {
@@ -281,7 +280,7 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
         if (!tmp)
         {
             fclose(fp);
-            for (size_t i = 0; i < n; i++)
+            for (int i = 0; i < n; i++)
                 free(lines[i]);
             free(lines);
             return 0;
@@ -292,7 +291,7 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
         if (!lines[n])
         {
             fclose(fp);
-            for (size_t i = 0; i < n; i++)
+            for (int i = 0; i < n; i++)
                 free(lines[i]);
             free(lines);
             return 0;
@@ -340,8 +339,14 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                     strcpy(e.method_today, "เงินสด");
                 else if (method = PAY_TRANSFER)
                     strcpy(e.method_today, "โอน");
-                else
-                    return;
+                else {
+                    printf("กรอกข้อมูลผิดพลาด\n");
+                    for(int i = 0; i < n; i++)
+                        free(lines[i]);
+                    free(lines);
+                    return 0;
+                }
+                    
             }
             if (pay_today)
                 e.paid_today = pay_today;
@@ -489,10 +494,10 @@ int summarize_daily(const char *daily_path, int verbose)
         if (!isdigit((unsigned char)line[0]))
             continue;
         DailyEntry e;
-        if (sscanf(line, "%d|%127[^|]|%63[^|]|%d|%d|%d|%d|%d|%d|%d",
+        if (sscanf(line, "%d|%127[^|]|%63[^|]|%d|%d|%d|%d|%d|%d|%127[^\n]",
                    &e.member_id, e.fullname, e.nickname, &e.gender,
                    &e.shuttle_qty, &e.court_fee, &e.amount_today,
-                   &e.paid_today, &e.paid_os, &e.method_today) == 10)
+                   &e.paid_today, &e.paid_os, e.method_today) == 10)
         {
             total_players++;
             total_shuttle += e.shuttle_qty;
