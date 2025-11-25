@@ -526,6 +526,7 @@ int summarize_daily(const char *daily_path, int verbose)
     char line[512];
     int total_players = 0, total_shuttle = 0, max_shuttle = 0, min_shuttle = 1 << 30;
     int total_income = 0, paid_cash = 0, paid_transfer = 0, paid_os = 0;
+    int total_unpaid = 0; // ยอดค้างรวม (amount_today - (paid_today + paid_os))
     while (fgets(line, sizeof(line), fp))
     {
         if (!isdigit((unsigned char)line[0]))
@@ -543,28 +544,39 @@ int summarize_daily(const char *daily_path, int verbose)
             if (e.shuttle_qty < min_shuttle)
                 min_shuttle = e.shuttle_qty;
             total_income += e.amount_today;
+
+            // ยอดที่ได้รับจริง: แยกตามช่องทางชำระเงิน
             if (strcmp(e.method_today, "เงินสด") == 0)
                 paid_cash += e.paid_today;
             else if (strcmp(e.method_today, "โอน") == 0)
                 paid_transfer += e.paid_today;
-            else if (strcmp(e.method_today, "ค้างจ่าย") == 0)
-                paid_os += e.paid_os;
+
+            // ยอดที่ชำระจากค้าง (paid_os) เก็บรวมเสมอ (เพื่อนำมาคำนวณยอดรับจริง)
+            paid_os += e.paid_os;
+
+            // ยอดค้างที่ยังต้องรับ = amount_today - (paid_today + paid_os)
+            int unpaid = e.amount_today - (e.paid_today + e.paid_os);
+            if (unpaid > 0)
+                total_unpaid += unpaid;
         }
     }
     fclose(fp);
-    int avg = total_players ? total_shuttle / total_players : 0;
-    int paid_total = paid_cash + paid_transfer;
+    float avg = total_players ? total_shuttle / total_players : 0;
+    int paid_total = paid_cash + paid_transfer + paid_os; // รวมเงินที่รับจริงทั้งหมด
+
     if (verbose)
     {
         printf("\n=== สรุปข้อมูลรายวัน ===\n");
         printf("ผู้เล่นทั้งหมด %d คน\n", total_players);
-        printf("ขายได้ %d ลูก เฉลี่ย %d ลูก/คน (สูงสุด %d ต่ำสุด %d)\n", total_shuttle, avg, max_shuttle, min_shuttle == 1 << 30 ? 0 : min_shuttle);
+        printf("ขายได้ %d ลูก เฉลี่ย %.1f ลูก/คน (สูงสุด %d ลูก, ต่ำสุด %d ลูก)\n", total_shuttle, avg, max_shuttle, min_shuttle == 1 << 30 ? 0 : min_shuttle);
         printf("ยอดรวมที่ต้องได้รับ %d บาท\n", total_income);
-        printf("ยอดได้รับจริง (เงินสด %d, โอน %d, ค้างจ่าย %d)\n", paid_cash, paid_transfer, paid_os);
+        // ปรับข้อความ: แสดงยอดที่รับจริง พร้อมยอดค้างคงค้างอยู่ (ไม่ได้เอา paid_os มาแทน)
+        printf("ยอดได้รับจริง (เงินสด %d, โอน %d, ชำระค้าง %d)\n", paid_cash, paid_transfer, paid_os);
+        printf("ยอดค้างชำระวันนี้ %d บาท\n", total_unpaid);
         printf("รวมรายได้วันนี้ %d บาท\n", paid_total);
     }
     int choose;
-    printf("พิมพ์ 0 เพื่อย้อนกลับ : ");
+    printf("\nพิมพ์ 0 เพื่อย้อนกลับ : ");
     scanf("%d", &choose);
     return 1;
 }

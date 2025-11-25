@@ -364,7 +364,7 @@ static void sub3()
             continue;
         }
         if (mode == 0)
-            continue;
+            return;
 
         SearchBy by;
         if (mode == 1)
@@ -457,10 +457,12 @@ static void sub3()
         if (!remove_os_entry("input/OSpayment.txt", &chosen)) // ลบยอดค้าง ส่ง OSEntry struct ไปด้วย
         {
             printf("ลบยอดค้างไม่สำเร็จ\n");
+            delay(3);
         }
         else
         {
             printf("ชำระหนี้ค้างเรียบร้อย และลบออกจากค้างจ่ายแล้ว\n");
+            delay(3);
         }
     }
 }

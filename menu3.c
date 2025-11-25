@@ -71,13 +71,13 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
         return 0;
     }
 
-    /* เขียน BOM UTF-8 กันภาษาไทยเพี้ยนใน Excel/Notepad บางตัว */
-    // fwrite("\xEF\xBB\xBF",1,3,fo);
-
     char line[512];
     int total_players = 0, total_shuttle = 0, max_shuttle = 0, min_shuttle = 1 << 30;
     int total_income = 0, paid_cash = 0, paid_transfer = 0, paid_os_today = 0, court_fee_pp = 0, court_fee_total = 0;
     int idx = 0;
+
+    int received_from_os = 0;   // ยอดที่ได้รับจากการชำระค้าง (paid_os sum)
+    int outstanding_today = 0;  // ยอดค้างคงเหลือ (amount_today - (paid_today + paid_os)) > 0
 
     char date_only[32] = "";
     {
@@ -93,7 +93,8 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
     if (full)
     {
         fprintf(fo, "วันที่|%s\n", date_only);
-        fprintf(fo, "ลำดับ|ชื่อเล่น|เลขสมาชิก|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ค้างสะสม|วิธีชำระ\n");
+        fprintf(fo, "ลำดับ|ชื่อเล่น|เลขสมาชิก|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ชำระจากค้าง|คงค้าง|วิธีชำระ\n");
+        fprintf(fo, "ลำดับ|ID|ชื่อ-นามสกุล|ชื่อเล่น|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ชำระจากค้าง|คงค้าง|วิธีชำระ\n");
     }
     else
     {
@@ -104,12 +105,14 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
     {
         if (!isdigit((unsigned char)line[0]))
             continue;
-        int member_id, gender, shuttle_qty, court_fee, amount_today, paid_today, paid_os, method;
+        int member_id, shuttle_qty, court_fee, amount_today, paid_today, paid_os;
         char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN];
-        if (sscanf(line, "%d|%127[^|]|%63[^|]|%d|%d|%d|%d|%d|%d|%d",
-                   &member_id, fullname, nickname, &gender,
+        char gender[GENDER_MAXLEN];
+        char method_today[method_today_MAXLEN];
+        if (sscanf(line, "%d|%127[^|]|%63[^|]|%31[^|]|%d|%d|%d|%d|%d|%31[^\n]",
+                   &member_id, fullname, nickname, gender,
                    &shuttle_qty, &court_fee, &amount_today,
-                   &paid_today, &paid_os, &method) == 10)
+                   &paid_today, &paid_os, method_today) == 10)
         {
             total_players++;
             total_shuttle += shuttle_qty;
@@ -117,27 +120,36 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
                 max_shuttle = shuttle_qty;
             if (shuttle_qty < min_shuttle)
                 min_shuttle = shuttle_qty;
+
             total_income += amount_today;
             court_fee_pp = court_fee;
             court_fee_total += court_fee;
-            if (method == PAY_CASH)
+
+            // เก็บยอดที่ชำระจริงตามวิธี
+            if (strcmp(method_today, "เงินสด") == 0)
                 paid_cash += paid_today;
-            else if (method == PAY_TRANSFER)
+            else if (strcmp(method_today, "โอน") == 0)
                 paid_transfer += paid_today;
-            else if (method == PAY_OS)
-                paid_os_today += amount_today;
+
+            // ยอดที่ชำระจากค้างสะสม
+            if (paid_os > 0)
+            {
+                received_from_os += paid_os;
+                paid_os_today += paid_os;
+            }
+
+            // คำนวณยอดค้างคงเหลือของแถวนี้ (บวกเฉพาะกรณียังค้าง)
+            int unpaid = amount_today - (paid_today + paid_os);
+            if (unpaid > 0)
+                outstanding_today += unpaid;
 
             if (full)
             {
-                const char *m = "ไม่ระบุ";
-                if (method == PAY_CASH)
-                    m = "เงินสด";
-                else if (method == PAY_TRANSFER)
-                    m = "โอน";
-                else if (method == PAY_OS)
-                    m = "ค้างจ่าย";
-                fprintf(fo, "%d|%s|%d|%d|%d|%d|%d|%s\n",
-                        ++idx, nickname, member_id, shuttle_qty, amount_today, paid_today, paid_os, m);
+                const char *m = method_today[0] ? method_today : "ไม่ระบุ";
+                int unpaid_row = amount_today - (paid_today + paid_os);
+                if (unpaid_row < 0) unpaid_row = 0;
+                fprintf(fo, "%d|%s|%d|%d|%d|%d|%d|%d|%s\n",
+                        ++idx, nickname, member_id, shuttle_qty, amount_today, paid_today, paid_os, unpaid_row, m);
             }
         }
     }
@@ -146,7 +158,7 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
     {
         int avg = total_players ? total_shuttle / total_players : 0;
         int received_today = paid_cash + paid_transfer;
-        int received_from_os = 0;
+        int total_received = received_today + received_from_os;
 
         fprintf(fo, "รวมจำนวนลูกทั้งหมด|%d\n", total_shuttle);
         fprintf(fo, "ค่าเฉลี่ยลูก/คน|%d\n", avg);
@@ -156,15 +168,15 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
         fprintf(fo, "ค่าสนามต่อคน|%d\n", court_fee_pp);
         fprintf(fo, "ค่าสนามรวม|%d\n", court_fee_total);
         fprintf(fo, "ยอดที่ต้องได้รับทั้งหมด|%d\n", total_income);
-        fprintf(fo, "ยอดที่ได้รับวันนี้|%d\n", received_today);
+        fprintf(fo, "ยอดที่ได้รับวันนี้ (เงินสด/โอน)|%d\n", received_today);
         fprintf(fo, "เป็นเงินสด|%d\n", paid_cash);
         fprintf(fo, "เป็นเงินโอน|%d\n", paid_transfer);
-        fprintf(fo, "ยอดค้างจ่ายของวันนี้|%d\n", paid_os_today);
-        fprintf(fo, "ยอดที่ได้รับจากการชำระค้าง|%d\n", received_from_os);
-        fprintf(fo, "ยอดรับรวมทั้งหมด|%d\n", received_today + received_from_os);
+        fprintf(fo, "ยอดได้รับจากการชำระค้าง|%d\n", received_from_os);
+        fprintf(fo, "ยอดค้างจ่ายของวันนี้|%d\n", outstanding_today);
+        fprintf(fo, "ยอดรับรวมทั้งหมด|%d\n", total_received);
     }
     int _tmp;
-    printf("พิมพ์ 0 เพื่อย้อนกลับ :");
+    printf("\nพิมพ์ 0 เพื่อย้อนกลับ :");
     scanf("%d", &_tmp);
     fclose(fo);
     return 1;
@@ -181,7 +193,7 @@ static int summarize_daily_and_write(const char *daily_path, const char *out_pat
  */
 static int summarize_month_and_write(const char *month_yyyy, const char *out_path)
 {
-    char path[128];
+    char path[256]; // เพิ่ม buffer ให้ใหญ่พอ "input/Daily data/<DD-MM-YYYY>.txt"
     int day, total_days = 0;
     int total_players = 0, total_shuttle = 0, max_shuttle = 0, min_shuttle = 1 << 30;
     int total_income = 0, paid_cash = 0, paid_transfer = 0, paid_from_os = 0, court_fee_total = 0, court_fee_pp_last = 0;
@@ -190,7 +202,8 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
     {
         char dd[3];
         snprintf(dd, sizeof(dd), "%02d", day);
-        snprintf(path, sizeof(path), "%s-%s.txt", dd, month_yyyy);
+        // path should match menu2 file path
+        snprintf(path, sizeof(path), "input/Daily data/%s-%s.txt", dd, month_yyyy);
 
         FILE *fp = fopen(path, "r");
         if (!fp)
@@ -201,12 +214,14 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
         {
             if (!isdigit((unsigned char)line[0]))
                 continue;
-            int member_id, gender, shuttle_qty, court_fee, amount_today, paid_today, paid_os, method;
+            int member_id, shuttle_qty, court_fee, amount_today, paid_today, paid_os;
             char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN];
-            if (sscanf(line, "%d|%127[^|]|%63[^|]|%d|%d|%d|%d|%d|%d|%d",
-                       &member_id, fullname, nickname, &gender,
+            char gender[GENDER_MAXLEN];
+            char method_today[method_today_MAXLEN];
+            if (sscanf(line, "%d|%127[^|]|%63[^|]|%31[^|]|%d|%d|%d|%d|%d|%31[^\n]",
+                       &member_id, fullname, nickname, gender,
                        &shuttle_qty, &court_fee, &amount_today,
-                       &paid_today, &paid_os, &method) == 10)
+                       &paid_today, &paid_os, method_today) == 10)
             {
                 total_players++;
                 total_shuttle += shuttle_qty;
@@ -217,18 +232,20 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
                 total_income += amount_today;
                 court_fee_pp_last = court_fee;
                 court_fee_total += court_fee;
-                if (method == PAY_CASH)
+                if (strcmp(method_today, "เงินสด") == 0)
                     paid_cash += paid_today;
-                else if (method == PAY_TRANSFER)
+                else if (strcmp(method_today, "โอน") == 0)
                     paid_transfer += paid_today;
-                paid_from_os += paid_os;
+                // เก็บยอดที่ชำระจากการตัดค้าง
+                if (paid_os > 0)
+                    paid_from_os += paid_os;
             }
         }
         fclose(fp);
     }
 
     int outstanding_this_month = 0;
-    FILE *fos = fopen("OSpayment.txt", "r");
+    FILE *fos = fopen("input/OSpayment.txt", "r"); // ใช้ path เดิมในโฟลเดอร์ input
     if (fos)
     {
         char line[512];
@@ -236,10 +253,10 @@ static int summarize_month_and_write(const char *month_yyyy, const char *out_pat
         {
             if (!isdigit((unsigned char)line[0]))
                 continue;
-            int member_id, gender, os_amount;
-            char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN], date[DATE_MAXLEN], note[NOTE_MAXLEN];
-            if (sscanf(line, "%d|%127[^|]|%63[^|]|%d|%15[^|]|%d|%127[^\n]",
-                       &member_id, fullname, nickname, &gender, date, &os_amount, note) == 7)
+            int member_id, os_amount;
+            char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN], date[DATE_MAXLEN], note[NOTE_MAXLEN], gender[GENDER_MAXLEN];
+            if (sscanf(line, "%d|%127[^|]|%63[^|]|%31[^|]|%15[^|]|%d|%127[^\n]",
+                       &member_id, fullname, nickname, gender, date, &os_amount, note) == 7)
             {
                 if (strlen(date) >= 7)
                 {
@@ -310,9 +327,9 @@ void menu3_choose(void)
     if (sub == 1)
     {
         int mode;
-        char date[DATE_MAXLEN], inpath[128], out_full[160], out_brief[160];
+        char date[DATE_MAXLEN], inpath[256], out_full[160], out_brief[160];
 
-        printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ): ");
+        printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ) : ");
         if (scanf("%15s", date) != 1)
         {
             while (getchar() != '\n' && !feof(stdin))
@@ -325,7 +342,8 @@ void menu3_choose(void)
         if (strcmp(date, "0") == 0)
             return;
 
-        snprintf(inpath, sizeof(inpath), "%s.txt", date);
+        // ปรับ inpath ให้ตรงกับไฟล์รายวันของโปรเจกต์
+        snprintf(inpath, sizeof(inpath), "input/Daily data/%s.txt", date);
         snprintf(out_full, sizeof(out_full), "output/%s.สรุปแบบละเอียด.txt", date);
         snprintf(out_brief, sizeof(out_brief), "output/%s.สรุปแบบย่อ.txt", date);
 
