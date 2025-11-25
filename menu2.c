@@ -167,6 +167,7 @@ static void sub1(const char *daily_path)
             {
                 printf("บันทึกข้อมูลเรียบร้อย: %s (%s) +%d ลูก\n", select.fullname, select.nickname, add_qty);
             }
+            break; // ออกจากลูป while (1) ของผู้เล่นคนนี้
         }
     }
 }
@@ -249,6 +250,7 @@ static void sub2(char *daily_path)
                 printf("%d) |%4d  | %s | %s | %-4s | %5d  | %5d      | %5d  |\n", // แสดงทีละรายการ
                        j + 1,
                        daily[j].member_id,
+                       daily[j].fullname,
                        daily[j].nickname,
                        daily[j].gender,
                        prices.shuttle_price,
@@ -334,7 +336,7 @@ static void sub2(char *daily_path)
         }
         else if (act == 3)
         {
-            if (!!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_OS, 0, 0))
+            if (!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_OS, 0, 0))
                 printf("อัปเดตรายวันสำหรับค้างจ่ายล้มเหลว\n");
             else
                 printf("เปลี่ยนสถานะเป็นค้างจ่ายสำเร็จ\n");
@@ -404,12 +406,12 @@ static void sub3()
 
         for (int j = 0; j < os_cnt; j++)
         {
-            printf("%d) |%4d | %s | %s | %s | %-4s | %-10 |  %-3d  |\n",
+            printf("%d) |%4d | %s | %s | %-4s | %-10s | %-3d  |\n",
                    j + 1,
                    os_arr[j].member_id,
                    os_arr[j].fullname,
-                   os_arr[j].gender,
                    os_arr[j].nickname,
+                   os_arr[j].gender,
                    os_arr[j].date,
                    os_arr[j].os_amount);
         }
@@ -446,13 +448,13 @@ static void sub3()
         {
             delete_buffle();
             printf("หมายเลขไม่ถูกต้อง\n");
-            dalay(3);
+            delay(3);
             continue;
         }
         if (act == 0)
             continue;
 
-        if (!remove_os_entry("OSpayment.txt", &chosen)) // ลบยอดค้าง ส่ง OSEntry struct ไปด้วย
+        if (!remove_os_entry("input/OSpayment.txt", &chosen)) // ลบยอดค้าง ส่ง OSEntry struct ไปด้วย
         {
             printf("ลบยอดค้างไม่สำเร็จ\n");
         }
@@ -505,9 +507,9 @@ static void sub6(Prices *prices)
             continue;
         }
         if (p == 0)
-            continue;
+            return;
         prices->court_fee_per_person = p;
-        save_prices("config.txt", prices);
+        save_prices("input/config.txt", prices);
         printf("บันทึกค่าสนามใหม่แล้ว\n");
         printf("\nพิมพ์ 0 เพื่อย้อนกลับ : "); // พิมพ์อะไรก็ได้
         int _tmp;
@@ -519,7 +521,7 @@ static void sub6(Prices *prices)
 void menu2_choose()
 {
     char date[DATE_MAXLEN]; // df ไว้ใน menu1.c
-    char daily_path[11];    // วัน-เดือน-ปี
+    char daily_path[256];    // วัน-เดือน-ปี -> ขยาย buffer เพื่อรองรับ path "input/Daily data/<DD-MM-YYYY>.txt"
     Prices prices;          // struct ที่ประกาศไว้ใน menu2.h
     int sub;
 
@@ -527,7 +529,7 @@ void menu2_choose()
     printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ): ");
     if (scanf("%11s", date) != 1)
     {
-        void delete_buffle();
+        delete_buffle();
         printf("ข้อมูลไม่ถูกต้อง ยกเลิกการลงทะเบียน\n");
         delay(3);
         return;
@@ -543,12 +545,13 @@ void menu2_choose()
         return;
     }
 
-    /*if (!load_prices("input/config.txt", &prices)) // เปิดเพื่ออ่านค่าคอร์ท และค่าลูก
+    // โหลดราคาเริ่มต้นเมื่อตั้งเมนู (จะถูกใช้โดย sub5/sub6)
+    if (!load_prices("input/config.txt", &prices))
     {
         printf("ไม่พบ config.txt ในโฟลเดอร์ \"input\" จะใช้ค่าเริ่มต้น\n");
         prices.shuttle_price = 100;
         prices.court_fee_per_person = 100;
-    }*/
+    }
 
     while (1)
     {
