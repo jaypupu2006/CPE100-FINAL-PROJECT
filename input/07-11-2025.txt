@@ -1,4 +1,0 @@
-member_id|fullname|nickname|gender|shuttle_qty|court_fee|amount_today|paid_today|paid_os|method_today
-1|สมชาย ใจดี|ชาย|1|12|50|110|0|0|OS
-2|ปวีณา มณีศรี|ฝน|2|18|50|140|140|0|CASH
-3|วีรภัทร ชาญชัย|บาส|1|10|50|100|100|0|TRANSFER
