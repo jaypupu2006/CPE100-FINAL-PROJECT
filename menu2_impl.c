@@ -382,8 +382,8 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 }
                 else if (method == PAY_OS)
                 {
-                    /* add paid_os if provided (>0) */
-                    e.paid_today += pay_today;
+                    /* reset paid_today to 0 when switching to OS */
+                    e.paid_today = 0;
                     strcpy(e.method_today, "ค้างจ่าย");
                 }
             }
