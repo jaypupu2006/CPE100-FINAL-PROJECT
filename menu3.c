@@ -143,7 +143,7 @@ void menu3_choose(void)
         printf("1. สรุปข้อมูลรายวัน\n");
         printf("2. สรุปข้อมูลรายเดือน\n");
         printf("0. ย้อนกลับ\n");
-        printf("เลือก: ");
+        printf("เลือก : ");
         if (scanf("%d", &sub) != 1)
         {
             delete_buffle();
@@ -172,8 +172,8 @@ void menu3_choose(void)
 
             // ปรับ inpath ให้ตรงกับไฟล์รายวันของโปรเจกต์
             snprintf(inpath, sizeof(inpath), "input/Daily data/%s.txt", date);
-            snprintf(out_full, sizeof(out_full), "output/%s.สรุปแบบละเอียด.txt", date);
-            snprintf(out_brief, sizeof(out_brief), "output/%s.สรุปแบบย่อ.txt", date);
+            snprintf(out_full, sizeof(out_full), "output/%s-Full-Summary.txt", date);
+            snprintf(out_brief, sizeof(out_brief), "output/%s-Brief-Summary.txt", date);
 
             printf("1. สรุปแบบมีรายชื่อ\n");
             printf("2. สรุปแบบย่อ\n");
