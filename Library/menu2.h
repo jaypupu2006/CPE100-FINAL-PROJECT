@@ -66,12 +66,14 @@ int search_members(SearchBy by, const char *key, Member **out_arr, int *out_coun
 int search_daily(const char *daily_path, SearchBy by, const char *key, DailyEntry **out_arr, int *out_count);
 int search_os(const char *os_path, SearchBy by, const char *key, OSEntry **out_arr, int *out_count);
 
-int upsert_daily_entry(const char *daily_path, const Prices *prices, const Member *m, int add_shuttle_qty, int count_player, PayMethod method, int pay_today, int pay_os);
+int upsert_daily_entry(const char *daily_path, const Prices *prices, const Member *m, int add_shuttle_qty, int count_player, PayMethod method, int pay_today, int pay_os, int check_update);
 
 int append_os(const char *os_path, const Member *m, const char *date_ddmmyyyy, int os_amount, const char *note);
 int remove_os_entry(const char *os_path, const OSEntry *entry);
+int upsert_os_entry(const char *os_path, const Member *m, const char *date_ddmmyyyy, int os_amount, const char *note); // <-- เพิ่มบรรทัดนี้
 
-int summarize_daily(const char *daily_path, int verbose);
+int summarize_daily_and_write(const char *daily_path, const char *out_path, int full);
+int print_file(const char *path);
 
 void menu2_choose(void);
 

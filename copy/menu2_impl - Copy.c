@@ -371,7 +371,6 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 /* payment update mode */
                 if (method == PAY_CASH)
                 {
-                    // add pay_today to existing paid_today (support partial payments)
                     e.paid_today = pay_today;
                     strcpy(e.method_today, "เงินสด");
                 }
@@ -382,8 +381,11 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 }
                 else if (method == PAY_OS)
                 {
-                    /* add paid_os if provided (>0) */
-                    e.paid_today = pay_today;
+                    /* overwrite paid_os with provided value (only when pay_os>0), per request */
+                    if (pay_os > 0)
+                        e.paid_os = pay_os;
+                    else
+                        e.paid_os = e.paid_os; /* leave unchanged if 0 passed */
                     strcpy(e.method_today, "ค้างจ่าย");
                 }
             }
@@ -393,17 +395,16 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 int players = count_player > 0 ? count_player : 1;
                 e.shuttle_qty += add_shuttle_qty;
                 e.court_fee = prices->court_fee_per_person;
-                int cal = prices->shuttle_price * add_shuttle_qty;
+                int cal = (prices->shuttle_price / players) * add_shuttle_qty;
                 e.amount_today += cal;
-                e.paid_today;
-                e.paid_os;
                 if (method == PAY_CASH) strcpy(e.method_today, "เงินสด");
                 else if (method == PAY_TRANSFER) strcpy(e.method_today, "โอน");
                 else strcpy(e.method_today, "ค้างจ่าย");
             }
 
-            /* apply explicit pay_today if cash/transfer provided (ensure not overwrite) already handled above */
-            // remove overwrite line; we intentionally add above instead of overwrite
+            /* apply explicit pay_today if cash/transfer provided */
+            if ((method == PAY_CASH || method == PAY_TRANSFER) && pay_today > 0)
+                e.paid_today = pay_today;
 
             /* write updated row */
             fprintf(fp, "%d|%s|%s|%s|%d|%d|%d|%d|%d|%s\n",
@@ -435,15 +436,17 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
 
         if (!check_update && method == PAY_OS)
         {
-            e.paid_today = pay_today;
-            e.paid_os = pay_os; 
+            e.shuttle_qty = 0;
+            e.court_fee = 0;
+            e.amount_today = 0;
+            e.paid_today = 0;
+            e.paid_os = pay_os; /* set paid_os as provided */
             strcpy(e.method_today, "ค้างจ่าย");
         }
         else
         {
             e.shuttle_qty = add_shuttle_qty;
             e.court_fee = prices->court_fee_per_person;
-            int cal = prices->shuttle_price * add_shuttle_qty;
             e.amount_today = cal + prices->court_fee_per_person;
             e.paid_today = (method == PAY_CASH || method == PAY_TRANSFER) ? pay_today : 0;
             e.paid_os = (method == PAY_OS) ? pay_os : 0;
@@ -597,9 +600,6 @@ int summarize_daily(const char *daily_path, int verbose)
     int total_players = 0, total_shuttle = 0, max_shuttle = 0, min_shuttle = 1 << 30;
     int total_income = 0, paid_cash = 0, paid_transfer = 0, paid_os = 0;
     int total_unpaid = 0; // ยอดค้างรวม (amount_today - (paid_today + paid_os))
-
-    DailyEntry *arr = NULL;
-    int count = 0;
     while (fgets(line, sizeof(line), fp))
     {
         if (!isdigit((unsigned char)line[0]))
@@ -610,17 +610,6 @@ int summarize_daily(const char *daily_path, int verbose)
                    &e.shuttle_qty, &e.court_fee, &e.amount_today,
                    &e.paid_today, &e.paid_os, e.method_today) == 10)
         {
-            DailyEntry *tmp = realloc(arr, sizeof(DailyEntry) * (count + 1));
-            if (!tmp)
-            {
-                fclose(fp);
-                for (int i = 0; i < count; i++) {}
-                free(arr);
-                return 0;
-            }
-            arr = tmp;
-            arr[count++] = e;
-
             total_players++;
             total_shuttle += e.shuttle_qty;
             if (e.shuttle_qty > max_shuttle)
@@ -662,163 +651,6 @@ int summarize_daily(const char *daily_path, int verbose)
     int choose;
     printf("\nพิมพ์ 0 เพื่อย้อนกลับ : ");
     scanf("%d", &choose);
-    return 1;
-}
-
-/* print_file: พิมพ์เนื้อหาทั้งหมดของไฟล์ไปยัง stdout
- * - คืนค่า: 1 เมื่อพิมพ์/พบไฟล์, 0 เมื่อไม่พบไฟล์
- */
-int print_file(const char *path)
-{
-    FILE *fp = fopen(path, "r");
-    if (!fp)
-    {
-        printf("ไม่พบไฟล์: %s\n", path);
-        delay(3);
-        return 0;
-    }
-    char buf[512];
-    while (fgets(buf, sizeof(buf), fp))
-        fputs(buf, stdout);
-    int _tmp;
-    printf("\nพิมพ์ 0 เพื่อย้อนกลับ : ");
-    scanf("%d", &_tmp);
-    fclose(fp);
-    return 1;
-}
-
-/*
- * summarize_daily_and_write: สรุปข้อมูลจากไฟล์รายวันและเขียนไฟล์สรุป
- * - พารามิเตอร์:
- *     `daily_path` - ไฟล์รายวันที่อ่าน (เช่น "DD-MM-YYYY.txt")
- *     `out_path` - ไฟล์สรุปที่ต้องการเขียนลง (จะเขียนทับถ้ามีอยู่)
- *     `full` - ถ้าเป็น 1 จะเขียนสรุปรายละเอียดพร้อมรายชื่อผู้เล่น, 0 จะเขียนแบบย่อ
- * - พฤติกรรม: อ่านบรรทัดข้อมูลผู้เล่นจากไฟล์รายวัน, คำนวณสถิติต่าง ๆ
- *   และเขียนผลลงไฟล์สรุปพร้อม BOM UTF-8
- * - คืนค่า: 1 เมื่อสำเร็จ, 0 เมื่อไฟล์ต้นทางหรือไฟล์ผลลัพธ์ไม่สามารถเปิดได้
- */
-int summarize_daily_and_write(const char *daily_path, const char *out_path, int full)
-{
-    FILE *fp = fopen(daily_path, "r");
-    if (!fp)
-    {
-        printf("ไม่พบไฟล์รายวัน: %s\n", daily_path);
-        delay(3);
-        return 0;
-    }
-    FILE *fo = fopen(out_path, "w");
-    if (!fo)
-    {
-        printf("ไม่สามารถเขียนไฟล์สรุป: %s\n", out_path);
-        delay(3);
-        fclose(fp);
-        return 0;
-    }
-
-    char line[512];
-    int total_players = 0, total_shuttle = 0, max_shuttle = 0, min_shuttle = 1 << 30;
-    int total_income = 0, paid_cash = 0, paid_transfer = 0, paid_os_today = 0, court_fee_pp = 0, court_fee_total = 0;
-    int idx = 0;
-
-    int received_from_os = 0;  // ยอดที่ได้รับจากการชำระค้าง (paid_os sum)
-    int outstanding_today = 0; // ยอดค้างคงเหลือ (amount_today - (paid_today + paid_os)) > 0
-
-    char date_only[32] = "";
-    {
-        const char *bn = strrchr(daily_path, '/');
-        const char *bp = strrchr(daily_path, '\\');
-        const char *base = bn ? bn + 1 : (bp ? bp + 1 : daily_path);
-        strncpy(date_only, base, sizeof(date_only) - 1);
-        char *dot = strrchr(date_only, '.');
-        if (dot)
-            *dot = '\0';
-    }
-
-    if (full)
-    {
-        fprintf(fo, "วันที่|%s\n", date_only);
-        fprintf(fo, "ลำดับ|ID|ชื่อ-นามสกุล|ชื่อเล่น|จำนวนลูก|ยอดวันนี้|ชำระวันนี้|ชำระจากค้าง|คงค้าง|วิธีชำระ\n");
-    }
-    else
-    {
-        fprintf(fo, "วันที่|%s\n", date_only);
-    }
-    while (fgets(line, sizeof(line), fp))
-    {
-        if (!isdigit((unsigned char)line[0]))
-            continue;
-        int member_id, shuttle_qty, court_fee, amount_today, paid_today, paid_os;
-        char fullname[NAME_MAXLEN], nickname[NICK_MAXLEN];
-        char gender[GENDER_MAXLEN];
-        char method_today[method_today_MAXLEN];
-        if (sscanf(line, "%d|%127[^|]|%63[^|]|%31[^|]|%d|%d|%d|%d|%d|%31[^\n]",
-                   &member_id, fullname, nickname, gender,
-                   &shuttle_qty, &court_fee, &amount_today,
-                   &paid_today, &paid_os, method_today) == 10)
-        {
-            total_players++;
-            total_shuttle += shuttle_qty;
-            if (shuttle_qty > max_shuttle)
-                max_shuttle = shuttle_qty;
-            if (shuttle_qty < min_shuttle)
-                min_shuttle = shuttle_qty;
-
-            total_income += amount_today;
-            court_fee_pp = court_fee;
-            court_fee_total += court_fee;
-
-            // เก็บยอดที่ชำระจริงตามวิธี
-            if (strcmp(method_today, "เงินสด") == 0)
-                paid_cash += paid_today;
-            else if (strcmp(method_today, "โอน") == 0)
-                paid_transfer += paid_today;
-
-            // ยอดที่ชำระจากค้างสะสม
-            if (paid_os > 0)
-            {
-                received_from_os += paid_os;
-                paid_os_today += paid_os;
-            }
-
-            // คำนวณยอดค้างคงเหลือของแถวนี้ (บวกเฉพาะกรณียังค้าง)
-            int unpaid = amount_today - (paid_today + paid_os);
-            if (unpaid > 0)
-                outstanding_today += unpaid;
-
-            if (full)
-            {
-                const char *m = method_today[0] ? method_today : "ไม่ระบุ";
-                int unpaid_row = amount_today - (paid_today + paid_os);
-                if (unpaid_row < 0)
-                    unpaid_row = 0;
-                fprintf(fo, "%d|%s|%d|%d|%d|%d|%d|%d|%s\n",
-                        ++idx, nickname, member_id, shuttle_qty, amount_today, paid_today, paid_os, unpaid_row, m);
-            }
-        }
-    }
-    fclose(fp);
-
-    {
-        int avg = total_players ? total_shuttle / total_players : 0;
-        int received_today = paid_cash + paid_transfer;
-        int total_received = received_today + received_from_os;
-
-        fprintf(fo, "รวมจำนวนลูกทั้งหมด|%d\n", total_shuttle);
-        fprintf(fo, "ค่าเฉลี่ยลูก/คน|%d\n", avg);
-        fprintf(fo, "จำนวนลูกสูงสุด|%d\n", max_shuttle);
-        fprintf(fo, "จำนวนลูกต่ำสุด|%d\n", (min_shuttle == 1 << 30) ? 0 : min_shuttle);
-        fprintf(fo, "จำนวนผู้เล่นทั้งหมด|%d\n", total_players);
-        fprintf(fo, "ค่าสนามต่อคน|%d\n", court_fee_pp);
-        fprintf(fo, "ค่าสนามรวม|%d\n", court_fee_total);
-        fprintf(fo, "ยอดที่ต้องได้รับทั้งหมด|%d\n", total_income);
-        fprintf(fo, "ยอดที่ได้รับวันนี้ (เงินสด/โอน)|%d\n", received_today);
-        fprintf(fo, "เป็นเงินสด|%d\n", paid_cash);
-        fprintf(fo, "เป็นเงินโอน|%d\n", paid_transfer);
-        fprintf(fo, "ยอดได้รับจากการชำระค้าง|%d\n", received_from_os);
-        fprintf(fo, "ยอดค้างจ่ายของวันนี้|%d\n", outstanding_today);
-        fprintf(fo, "ยอดรับรวมทั้งหมด|%d\n", total_received);
-    }
-    fclose(fo);
     return 1;
 }
 

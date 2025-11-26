@@ -208,10 +208,11 @@ void search_member()
     char key[NAME_MAXLEN];
     int search_id = 0;
 
-    system("cls");
+    
 
     while (1)
     {
+        system("cls");
         printf("=== ค้นหาสมาชิก ===\n");
         printf("1. ค้นหาด้วยรหัสสมาชิก\n");
         printf("2. ค้นหาด้วยชื่อเล่น\n");
@@ -221,8 +222,7 @@ void search_member()
 
         if (scanf("%d", &mode) != 1)
         {
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF); // ล้าง buffer ทั้งหมด จนถึง \n หรือ EOF
+            delete_buffle();
             printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
             delay(3);
             continue;
@@ -239,8 +239,7 @@ void search_member()
             printf("ป้อนรหัสสมาชิก (0 = ยกเลิก) : ");
             if (scanf("%d", &search_id) != 1)
             {
-                int c;
-                while ((c = getchar()) != '\n' && c != EOF); // ล้าง buffer ทั้งหมด จนถึง \n หรือ EOF
+                delete_buffle();
                 printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
                 delay(3);
                 continue;
@@ -253,8 +252,7 @@ void search_member()
         else if (mode == 2 || mode == 3)
         {
             printf("ป้อนคำที่ต้องการค้นหา (0 = ยกเลิก) : ");
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF);
+            delete_buffle();
             fgets(key, sizeof(key), stdin);
             key[strcspn(key, "\n")] = '\0';
             trim(key); // ลบ space ท้ายตัวหนังสือจนถึง '\0'
@@ -270,6 +268,7 @@ void search_member()
             delay(3);
             continue;
         }
+        break;
     }
 
     printf("\n=== ผลการค้นหา ===\n");

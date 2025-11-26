@@ -70,18 +70,16 @@ static void sub1(const char *daily_path)
             {
                 printf("กรุณากรอกตัวเลขเท่านั้น!\n");
                 delete_buffle();
-                delay(3);
                 continue;
             }
 
             if (mode == 0)
                 return; // ยกเลิกเมนู
-
+            
             if (mode < 1 || mode > 3) // ตัวเลขไม่ถูกต้อง
             {
                 printf("กรุณากรอกตัวเลขให้ถูกต้อง!\n");
                 delete_buffle();
-                delay(3);
                 continue;
             }
 
@@ -176,16 +174,14 @@ static void sub1(const char *daily_path)
             if (!upsert_daily_entry(daily_path, &prices, &select, add_qty, count_player, PAY_OS, 0, 0, 1))
             {
                 printf("บันทึกข้อมูลรายวันล้มเหลว\n");
-                delay(3);
             }
             else
             {
                 printf("บันทึกข้อมูลเรียบร้อย: %s (%s) +%d ลูก\n", select.fullname, select.nickname, add_qty);
-                delay(3);
             }
-            break;
+            break; // exit while(1) for this player
         } // end while(1)
-    }
+    } // end for
 }
 
 static void sub2(char *daily_path)
@@ -225,7 +221,6 @@ static void sub2(char *daily_path)
         else
         {
             printf("เมนูค้นหาไม่ถูกต้อง\n");
-            delay(3);
             continue;
         }
 
@@ -254,16 +249,15 @@ static void sub2(char *daily_path)
             pick_index = 0;
             printf("\n=== ผลการค้นหา ===\n");
             printf("พบรายการ 1 รายการของสมาชิกนี้\n");
-            printf("---------------------------------------------------------------------------------------------\n");
-            printf("\n   |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | ค่าลูก | จำนวนลูกที่เล่น | รวมยอด | สถานะ |\n");
-            printf("---------------------------------------------------------------------------------------------\n");
-            printf("  |%4d  | %s | %s | %-4s | %5d  | %5d  | %5d      | %5d  | %s |\n",
+            printf("-----------------------------------------------------------------------------\n"); // แก้: ให้ใช้ printf แทน string literal
+            printf("\n  |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | จำนวนลูกที่เล่น | รวมยอด | สถานะ |\n");
+            printf("-----------------------------------------------------------------------------\n"); // แก้: ให้ใช้ printf แทน string literal
+            printf("  |%4d  | %s | %s | %-4s | %5d  | %5d      | %5d  | %s |\n", // แก้: ใช้ court_fee สำหรับค่าสนาม ไม่ใช่ shuttle_qty สองครั้ง
                    daily[0].member_id,
                    daily[0].fullname,
                    daily[0].nickname,
                    daily[0].gender,
                    daily[0].court_fee,
-                   prices.shuttle_price,
                    daily[0].shuttle_qty,
                    daily[0].amount_today,
                    daily[0].paid_today > 0 ? "ชำระแล้ว" : "ยังไม่ชำระ");
@@ -273,26 +267,25 @@ static void sub2(char *daily_path)
         {
             printf("\n=== ผลการค้นหา ===\n");
             printf("พบรายการ %d รายการ :\n", dcount); // พบหลายรายการ
-            printf("---------------------------------------------------------------------------------------------\n");
-            printf("\n   |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | ค่าลูก | จำนวนลูกที่เล่น | รวมยอด | สถานะ |\n");
-            printf("---------------------------------------------------------------------------------------------\n");
+            printf("-----------------------------------------------------------------------------\n");
+            printf("\n   |  ID  |    ชื่อ-นามสกุล    |  ชื่อเล่น  | เพศ | ค่าคอร์ท | จำนวนลูกที่เล่น | รวมยอด | สถานะ |\n");
+            printf("-----------------------------------------------------------------------------\n");
             for (int j = 0; j < dcount; j++)
             {
-                printf("%d) |%4d  | %s | %s | %-4s | %5d  | %5d  | %5d      | %5d  | %s |\n",
+                printf("%d) |%4d  | %s | %s | %-4s | %5d  | %5d      | %5d  | %s |\n",
                        j + 1,
                        daily[j].member_id,
                        daily[j].fullname,
                        daily[j].nickname,
                        daily[j].gender,
-                       daily[j].court_fee,   // แสดงค่าสนามตรงนี้
-                       prices.shuttle_price, //  แสดงราคาลูกที่โหลดมาจาก config.txt
+                       daily[j].court_fee,   // <-- แก้: แสดงค่าสนามตรงนี้
                        daily[j].shuttle_qty,
                        daily[j].amount_today,
                        daily[j].paid_today > 0 ? "ชำระแล้ว" : "ยังไม่ชำระ");
             }
-            printf("---------------------------------------------------------------------------------------------\n");
+            printf("-----------------------------------------------------------------------------\n");
             int pick;
-            printf("\nเลือกหมายเลข 1-%d ตามลำดับ (0 = ยกเลิก) : ", dcount); // ให้ผู้ใช้เลือก
+            printf("\nเลือกหมายเลข 1-%d ตามลำดับ (0 = ยกเลิก): ", dcount); // ให้ผู้ใช้เลือก
             if (scanf("%d", &pick) != 1)
             {
                 printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
@@ -306,7 +299,7 @@ static void sub2(char *daily_path)
                 free(daily);
                 continue;
             }
-            if (pick < 1 || pick > dcount)
+            if (pick < 1 || (int)pick > dcount)
             {
                 printf("หมายเลขไม่ถูกต้อง\n");
                 free(daily);
@@ -375,26 +368,7 @@ static void sub2(char *daily_path)
             }
             else
             {
-                // คำนวณยอดค้างและเพิ่ม/อัปเดตใน OSpayment.txt
-                char date_only[DATE_MAXLEN] = "";
-                const char *bn = strrchr(daily_path, '/');
-                const char *bp = strrchr(daily_path, '\\');
-                const char *base = bn ? bn + 1 : (bp ? bp + 1 : daily_path);
-                strncpy(date_only, base, sizeof(date_only) - 1);
-                char *dot = strrchr(date_only, '.');
-                if (dot)
-                    *dot = '\0';
-
-                // note "ค้างจ่าย"
-                if (!upsert_os_entry("input/OSpayment.txt", &m, date_only, d.amount_today, "ค้างจ่าย"))
-                {
-                    printf("เพิ่มรายการค้างใน OSpayment.txt ล้มเหลว\n");
-                }
-                else
-                {
-                    printf("บันทึกสถานะค้างจ่ายเรียบร้อย (เพิ่มใน OSpayment: %d บาท)\n", d.amount_today);
-                }
-
+                printf("บันทึกสถานะค้างจ่ายเรียบร้อย\n");
                 delay(3);
             }
         }
@@ -426,8 +400,6 @@ static void sub3(const char *exclude_date)
         if (scanf("%d", &mode) != 1)
         {
             delete_buffle();
-            printf("เมนูค้นหาไม่ถูกต้อง\n");
-            delay(3);
             continue;
         }
         if (mode == 0)
@@ -443,7 +415,6 @@ static void sub3(const char *exclude_date)
         else
         {
             printf("เมนูค้นหาไม่ถูกต้อง\n");
-            delay(3);
             continue;
         }
 
@@ -529,7 +500,7 @@ static void sub3(const char *exclude_date)
         OSEntry chosen = filtered[pick - 1]; // เลือก 1 index
 
         int act;
-        printf("ชำระหนี้ค้างนี้หรือไม่? 1 = เงินสด, 2 = โอน, 0 = ยกเลิก : ");
+        printf("ชำระหนี้ค้างนี้หรือไม่? 1=เงินสด 2=โอน 0=ยกเลิก: ");
         if (scanf("%d", &act) != 1)
         {
             delete_buffle();
@@ -546,7 +517,7 @@ static void sub3(const char *exclude_date)
 
         // ask how much they pay now from OS (moved from sub2 logic)
         int pay_amt = 0;
-        printf("จำนวนเงินที่ชำระจากค้าง (0 = ยกเลิก) : ");
+        printf("จำนวนเงินที่ชำระจากค้าง (จำนวนเต็มบาท, 0 = ยกเลิก): ");
         if (scanf("%d", &pay_amt) != 1)
         {
             delete_buffle();
@@ -689,11 +660,11 @@ void menu2_choose()
         printf("1. ลงชื่อเบิกลูก\n");
         printf("2. สรุปยอดที่ต้องชำระ (รายบุคคล)\n");
         printf("3. ค้นหายอดค้างชำระ\n");
-        printf("4. สรุปข้อมูลรายวัน\n");
+        printf("4. สรุปข้อมูลรายวัน (แสดงบนหน้าจอ)\n");
         printf("5. เปลี่ยนราคาลูกแบด\n");
         printf("6. เปลี่ยนค่าสนามต่อคน\n");
         printf("0. ย้อนกลับ\n");
-        printf("เลือกเมนู : ");
+        printf("เลือกเมนู: ");
 
         if (scanf("%d", &sub) != 1)
         {
@@ -725,60 +696,8 @@ void menu2_choose()
         }
         else if (sub == 4)
         {
-            // build ascii output filenames to avoid encoding problems
-            char out_full[160], out_brief[160];
-            snprintf(out_full, sizeof(out_full), "output/%s-Full-summary.txt", date);
-            snprintf(out_brief, sizeof(out_brief), "output/%s.Brief-summary.txt", date);
-
-            // ensure output folder exists (Windows). Hide errors
-            system("mkdir output 2>nul");
-
-            /* -------- เมนู 4: สรุปข้อมูลรายวัน -------- */
-            while (1)
-            {
-                system("cls");
-                printf("\n=== เมนูสรุปข้อมูลรายวัน ===\n");
-                printf("1. สรุปแบบมีรายชื่อ\n");
-                printf("2. สรุปแบบย่อ\n");
-                printf("0. ย้อนกลับ\n");
-                printf("เลือก : ");
-                int mode = 0;
-                if (scanf("%d", &mode) != 1)
-                {
-                    delete_buffle();
-                    printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
-                    delay(2);
-                    continue;
-                }
-                printf("\n\n");
-                if (mode == 0)
-                    break;
-
-                if (mode == 1)
-                {
-                        if (!summarize_daily_and_write(daily_path, out_full, 1))
-                        {
-                            printf("บันทึกไฟล์สรุปแบบละเอียดล้มเหลว\n");
-                            delay(3);
-                        }
-                        else
-                        {
-                            print_file(out_full);
-                        }
-                }
-                else if (mode == 2)
-                {
-                        if (!summarize_daily_and_write(daily_path, out_brief, 0))
-                        {
-                            printf("บันทึกไฟล์สรุปแบบย่อล้มเหลว\n");
-                            delay(3);
-                        }
-                        else
-                        {
-                            print_file(out_brief);
-                        }
-                }
-            }
+            /* -------- เมนู 4: สรุปข้อมูลรายวันบนหน้าจอ -------- */
+            summarize_daily(daily_path, 1);
         }
         else if (sub == 5)
         {
