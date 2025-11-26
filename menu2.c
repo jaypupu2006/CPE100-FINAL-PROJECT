@@ -583,7 +583,7 @@ static void sub3(const char *exclude_date)
 
         // perform daily update: add paid_today by the amount paid; method is cash/transfer accordingly
         PayMethod method = act == 1 ? PAY_CASH : PAY_TRANSFER;
-        if (!upsert_daily_entry(orig_daily_path, &prices, &m, 0, 1, method, pay_amt, 0, 0))
+        if (!upsert_daily_entry(orig_daily_path, &prices, &m, 0, 1, method, 0, pay_amt, 0))
         {
             printf("อัปเดตการชำระในไฟล์รายวันไม่สำเร็จ\n");
             delay(3);

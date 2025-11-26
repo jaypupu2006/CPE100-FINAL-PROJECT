@@ -370,21 +370,26 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
             if (!check_update)
             {
                 /* payment update mode */
-                if (method == PAY_CASH)
+                if (method == PAY_CASH || method == PAY_TRANSFER)
                 {
                     // add pay_today to existing paid_today (support partial payments)
-                    e.paid_today += pay_today;
-                    strcpy(e.method_today, "เงินสด");
-                }
-                else if (method == PAY_TRANSFER)
-                {
-                    e.paid_today += pay_today;
-                    strcpy(e.method_today, "โอน");
+                    if (pay_today > 0)
+                        e.paid_today += pay_today;
+                    // if caller provided pay_os (e.g., paying outstanding later), add it to paid_os
+                    if (pay_os > 0)
+                        e.paid_os += pay_os;
+
+                    if (method == PAY_CASH)
+                        strcpy(e.method_today, "เงินสด");
+                    else
+                        strcpy(e.method_today, "โอน");
                 }
                 else if (method == PAY_OS)
                 {
-                    /* reset paid_today to 0 when switching to OS */
+                    /* switching to outstanding: keep paid_os if provided, reset paid_today */
                     e.paid_today = 0;
+                    if (pay_os > 0)
+                        e.paid_os += pay_os; // support adding to outstanding when requested
                     strcpy(e.method_today, "ค้างจ่าย");
                 }
             }
@@ -402,9 +407,6 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 else if (method == PAY_TRANSFER) strcpy(e.method_today, "โอน");
                 else strcpy(e.method_today, "ค้างจ่าย");
             }
-
-            /* apply explicit pay_today if cash/transfer provided (ensure not overwrite) already handled above */
-            // remove overwrite line; we intentionally add above instead of overwrite
 
             /* write updated row */
             fprintf(fp, "%d|%s|%s|%s|%d|%d|%d|%d|%d|%s\n",
@@ -447,7 +449,8 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
             int cal = prices->shuttle_price * add_shuttle_qty;
             e.amount_today = cal + prices->court_fee_per_person;
             e.paid_today = (method == PAY_CASH || method == PAY_TRANSFER) ? pay_today : 0;
-            e.paid_os = (method == PAY_OS) ? pay_os : 0;
+            /* record paid_os if caller provided pay_os (e.g., paying outstanding with cash/transfer) */
+            e.paid_os = pay_os;
             if (method == PAY_CASH) strcpy(e.method_today, "เงินสด");
             else if (method == PAY_TRANSFER) strcpy(e.method_today, "โอน");
             else strcpy(e.method_today, "ค้างจ่าย");
@@ -464,7 +467,7 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 e.paid_today, e.paid_os, e.method_today);
 
         last_member_id = e.member_id;
-        last_unpaid = e.amount_today;
+        last_unpaid = e.amount_today - (e.paid_today + e.paid_os);
     }
 
     fclose(fp);
