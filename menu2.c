@@ -733,8 +733,8 @@ void menu2_choose()
         {
             // build ascii output filenames to avoid encoding problems
             char out_full[160], out_brief[160];
-            snprintf(out_full, sizeof(out_full), "output/%s-Full-summary.txt", date);
-            snprintf(out_brief, sizeof(out_brief), "output/%s.Brief-summary.txt", date);
+            snprintf(out_full, sizeof(out_full), "output/%s-Full-Summary.txt", date);
+            snprintf(out_brief, sizeof(out_brief), "output/%s-Brief-Summary.txt", date);
 
             // ensure output folder exists (Windows). Hide errors
             system("mkdir output 2>nul");

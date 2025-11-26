@@ -247,7 +247,7 @@ void menu3_choose(void)
             if (strcmp(month_yyyy, "0") == 0)
                 continue;
 
-            snprintf(out_path, sizeof(out_path), "output/%s-month-summary.txt", month_yyyy);
+            snprintf(out_path, sizeof(out_path), "output/%s-Month-Summary.txt", month_yyyy);
 
             if (!summarize_month_and_write(month_yyyy, out_path))
             {
