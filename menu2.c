@@ -54,7 +54,7 @@ static void sub1(const char *daily_path)
         break;
     }
 
-    for (int i = 0; i < count_player; i++) // วนให้ครบจำนวนผู้เล่นที่หาร
+    for (int i = 0; i < count_player; i++) // วนให้ครบจำนวนผู้เล่น
     {
         while (1)
         {
@@ -341,7 +341,9 @@ static void sub2(char *daily_path)
         if (act == 1)
         {
             // pay cash: set paid_today to full amount, check_update=0 (payment)
-            if (!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_CASH, d.amount_today, 0, 0))
+            int unpaid = d.amount_today - (d.paid_today + d.paid_os);
+            if (unpaid < 0) unpaid = 0;
+            if (!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_CASH, unpaid, 0, 0))
             {
                 printf("อัปเดตการชำระเงินสดล้มเหลว\n");
                 delay(3);
@@ -354,7 +356,9 @@ static void sub2(char *daily_path)
         }
         else if (act == 2)
         {
-            if (!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_TRANSFER, d.amount_today, 0, 0))
+            int unpaid = d.amount_today - (d.paid_today + d.paid_os);
+            if (unpaid < 0) unpaid = 0;
+            if (!upsert_daily_entry(daily_path, &prices, &m, 0, 1, PAY_TRANSFER, unpaid, 0, 0))
             {
                 printf("อัปเดตการชำระแบบโอนล้มเหลว\n");
                 delay(3);
@@ -538,9 +542,11 @@ static void sub3(const char *exclude_date)
             free(filtered);
             continue;
         }
-        if (act == 0)
+        if (act == 0 || act > 2 || act < 1)
         {
+            printf("หมายเลขไม่ถูกต้อง\n");
             free(filtered);
+            delay(3);
             continue;
         }
 

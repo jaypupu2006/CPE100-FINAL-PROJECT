@@ -372,18 +372,18 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 if (method == PAY_CASH)
                 {
                     // add pay_today to existing paid_today (support partial payments)
-                    e.paid_today = pay_today;
+                    e.paid_today += pay_today;
                     strcpy(e.method_today, "เงินสด");
                 }
                 else if (method == PAY_TRANSFER)
                 {
-                    e.paid_today = pay_today;
+                    e.paid_today += pay_today;
                     strcpy(e.method_today, "โอน");
                 }
                 else if (method == PAY_OS)
                 {
                     /* add paid_os if provided (>0) */
-                    e.paid_today = pay_today;
+                    e.paid_today += pay_today;
                     strcpy(e.method_today, "ค้างจ่าย");
                 }
             }
@@ -463,7 +463,7 @@ int upsert_daily_entry(const char *daily_path, const Prices *prices, const Membe
                 e.paid_today, e.paid_os, e.method_today);
 
         last_member_id = e.member_id;
-        last_unpaid = e.amount_today - (e.paid_today + e.paid_os);
+        last_unpaid = e.amount_today;
     }
 
     fclose(fp);
