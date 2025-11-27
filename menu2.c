@@ -661,17 +661,30 @@ void menu2_choose()
     int sub;
 
     printf("\n=== เมนูเปิดก๊วน / จัดการรายวัน ===\n");
-    printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ) : ");
-    if (scanf("%11s", date) != 1)
-    {
-        delete_buffle();
-        printf("ข้อมูลไม่ถูกต้อง ยกเลิกการลงทะเบียน\n");
-        delay(3);
-        return;
-    }
 
-    if (strcmp(date, "0") == 0) // 0 ย้อนกลับ
-        return;
+    /* Loop until a valid DD-MM-YYYY is entered or the user enters 0 to cancel */
+    while (1)
+    {
+        printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ) : ");
+        if (scanf("%11s", date) != 1)
+        {
+            delete_buffle();
+            printf("ข้อมูลไม่ถูกต้อง ยกเลิกการลงทะเบียน\n");
+            delay(3);
+            return;
+        }
+
+        if (strcmp(date, "0") == 0) // 0 ย้อนกลับ
+            return;
+
+        if (!validate_date_ddmmyyyy(date))
+        {
+            printf("รูปแบบวันที่ต้องเป็น DD-MM-YYYY เช่น 05-08-2025\n");
+            delay(2);
+            continue;
+        }
+        break;
+    }
 
     snprintf(daily_path, sizeof(daily_path), "input/Daily data/%s.txt", date); // ต่อ - รวม string
 

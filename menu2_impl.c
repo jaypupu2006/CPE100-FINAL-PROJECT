@@ -919,3 +919,63 @@ int upsert_os_entry(const char *os_path, const Member *m, const char *date_ddmmy
     fclose(fp);
     return 1;
 }
+
+/* --- Date validation helpers (public functions declared in menu2.h) --- */
+static int is_leap_year_local(int y)
+{
+    return (y % 400 == 0) || ((y % 4 == 0) && (y % 100 != 0));
+}
+
+int validate_date_ddmmyyyy(const char *s)
+{
+    if (!s)
+        return 0;
+    if (strlen(s) != 10)
+        return 0;
+    if (s[2] != '-' || s[5] != '-')
+        return 0;
+    for (int i = 0; i < 10; i++)
+    {
+        if (i == 2 || i == 5)
+            continue;
+        if (!isdigit((unsigned char)s[i]))
+            return 0;
+    }
+    int dd, mm, yyyy;
+    if (sscanf(s, "%2d-%2d-%4d", &dd, &mm, &yyyy) != 3)
+        return 0;
+    if (mm < 1 || mm > 12)
+        return 0;
+    if (dd < 1)
+        return 0;
+    int mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int maxd = mdays[mm];
+    if (mm == 2 && is_leap_year_local(yyyy))
+        maxd = 29;
+    if (dd > maxd)
+        return 0;
+    return 1;
+}
+
+int validate_month_mmyyyy(const char *s)
+{
+    if (!s)
+        return 0;
+    if (strlen(s) != 7)
+        return 0;
+    if (s[2] != '-')
+        return 0;
+    for (int i = 0; i < 7; i++)
+    {
+        if (i == 2)
+            continue;
+        if (!isdigit((unsigned char)s[i]))
+            return 0;
+    }
+    int mm, yyyy;
+    if (sscanf(s, "%2d-%4d", &mm, &yyyy) != 2)
+        return 0;
+    if (mm < 1 || mm > 12)
+        return 0;
+    return 1;
+}

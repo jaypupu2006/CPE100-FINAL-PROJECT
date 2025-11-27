@@ -116,11 +116,31 @@ void register_member()
         return;
     }
 
-    if (strlen(fullname) == 0)
+    /* เช็คชื่อ-นามสกุลซ้ำแบบเป๊ะ ๆ */
     {
-        printf("ยกเลิกการลงทะเบียน (ไม่ได้กรอกชื่อ)\n");
-        delay(3);
-        return;
+        FILE *fp_check = fopen("input/member.txt", "r");
+        if (fp_check != NULL)
+        {
+            char line_chk[500];
+            int found_id = 0;
+            char existing_fullname[NAME_MAXLEN];
+            while (fgets(line_chk, sizeof(line_chk), fp_check))
+            {
+                if (sscanf(line_chk, "%d|%127[^|]|%*63[^|]|%*31[^|]|%*10[^\n]", &found_id, existing_fullname) == 2)
+                {
+                    if (strcmp(existing_fullname, fullname) == 0)
+                    {
+                        printf("รายชื่อนี้เคยลงทะเบียนแล้ว (ID : %d)\n", found_id);
+                        printf("พิมพ์ 0 เพื่อย้อนกลับ : ");
+                        int _tmp;
+                        scanf("%d", &_tmp);
+                        fclose(fp_check);
+                        return;
+                    }
+                }
+            }
+            fclose(fp_check);
+        }
     }
 
     printf("ป้อนชื่อเล่น (0 = ยกเลิก) : ");

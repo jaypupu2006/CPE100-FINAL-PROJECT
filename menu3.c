@@ -3,7 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "Library/menu1.h"
-#include "Library/menu2.h"
+#include "Library/menu2.h" // contains validate_date_ddmmyyyy / validate_month_mmyyyy
 #include "Library/menu3.h"
 #include "Library/delay.h"
 
@@ -159,13 +159,26 @@ void menu3_choose(void)
             int mode;
             char date[DATE_MAXLEN], inpath[256], out_full[160], out_brief[160];
 
-            printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ) : ");
-            if (scanf("%15s", date) != 1)
+            /* Loop until a valid DD-MM-YYYY is entered or 0 to cancel */
+            while (1)
             {
-                delete_buffle();
-                printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
-                delay(2);
-                continue;
+                printf("กรอกวันที่ (DD-MM-YYYY) (0 = ย้อนกลับ) : ");
+                if (scanf("%15s", date) != 1)
+                {
+                    delete_buffle();
+                    printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+                    delay(2);
+                    continue;
+                }
+                if (strcmp(date, "0") == 0)
+                    break;
+                if (!validate_date_ddmmyyyy(date))
+                {
+                    printf("รูปแบบวันที่ต้องเป็น DD-MM-YYYY เช่น 05-08-2025\n");
+                    delay(2);
+                    continue;
+                }
+                break;
             }
             if (strcmp(date, "0") == 0)
                 continue;
@@ -235,15 +248,28 @@ void menu3_choose(void)
         else if (sub == 2)
         {
             char month_yyyy[8], out_path[160];
-            printf("กรอกเดือน/ปี (MM-YYYY) (0 = ย้อนกลับ) : ");
-            if (scanf("%7s", month_yyyy) != 1)
+
+            /* Loop until a valid MM-YYYY is entered or 0 to cancel */
+            while (1)
             {
-                delete_buffle();
-                printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
-                delay(2);
-                continue;
+                printf("กรอกเดือน/ปี (MM-YYYY) (0 = ย้อนกลับ) : ");
+                if (scanf("%7s", month_yyyy) != 1)
+                {
+                    delete_buffle();
+                    printf("\nกรอกหมายเลขผิดพลาด โปรดลองอีกครั้ง\n");
+                    delay(2);
+                    continue;
+                }
+                if (strcmp(month_yyyy, "0") == 0)
+                    break;
+                if (!validate_month_mmyyyy(month_yyyy))
+                {
+                    printf("รูปแบบต้องเป็น MM-YYYY เช่น 08-2025\n");
+                    delay(2);
+                    continue;
+                }
+                break;
             }
-            printf("\n");
             if (strcmp(month_yyyy, "0") == 0)
                 continue;
 
