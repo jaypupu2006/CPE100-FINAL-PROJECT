@@ -5,21 +5,6 @@
 #include "Library/menu2.h"
 #include "Library/delay.h"
 
-/*
- * dupstr: สำเนาสตริงโดยคืน pointer ที่ต้อง free เมื่อเลิกใช้
- * - พารามิเตอร์: `s` สตริงต้นฉบับ (ไม่เป็น NULL)
- * - คืนค่า: pointer ใหม่ ที่ต้องถูก free โดยผู้เรียกเมื่อไม่ใช้งาน
- */
-static char *dupstr(const char *s) // คืนค่าเป็น pointer
-{
-    int n = strlen(s) + 1; // พื้นที่ byte รวม  '\0'
-    char *p = malloc(n);   // จอง byte ขนาดเดียวกับข้อมูลที่ส่งมา
-    if (p)                 // ถ้าจองสำเร็จ
-        memcpy(p, s, n);   // คัดลอกข้อมูลจาก s มาเก็บใน p
-    return p;
-}
-
-/* helper: trim both sides in local scope so we can sanitize keys read from config */
 static void trim_str_local(char *s)
 {
     char *start = s;
